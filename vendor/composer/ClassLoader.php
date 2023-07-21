@@ -42,9 +42,6 @@ namespace Composer\Autoload;
  */
 class ClassLoader
 {
-    /** @var \Closure(string):void */
-    private static $includeFile;
-
     /** @var ?string */
     private $vendorDir;
 
@@ -109,7 +106,6 @@ class ClassLoader
     public function __construct($vendorDir = null)
     {
         $this->vendorDir = $vendorDir;
-        self::initializeIncludeClosure();
     }
 
     /**
@@ -429,7 +425,7 @@ class ClassLoader
     public function loadClass($class)
     {
         if ($file = $this->findFile($class)) {
-            (self::$includeFile)($file);
+            includeFile($file);
 
             return true;
         }
@@ -559,23 +555,33 @@ class ClassLoader
 
         return false;
     }
+}
 
-    private static function initializeIncludeClosure(): void
-    {
-        if (self::$includeFile !== null) {
-            return;
+/**
+ * Scope isolated include.
+ *
+ * Prevents access to $this/self from included files.
+ *
+ * @param  string $file
+ * @return void
+ * @private
+ */
+
+function includeFile($file)
+{
+    try {
+        include $file;
+    } catch (\Exception $e) {
+        $msg = $e->getMessage();
+        if (strstr($msg, 'No such file or directory')) {
+            if (strstr($msg, '/vendor/composer/../../overrides/')) {
+                $new_file = str_replace('/vendor/composer/../../overrides/', '/vendor/composer/../', $file);
+            } else {
+                $new_file = str_replace('/vendor/composer/../', '/vendor/composer/../../overrides/', $file);
+            }
+            include $new_file;
+        } else {
+            throw $e;
         }
-
-        /**
-         * Scope isolated include.
-         *
-         * Prevents access to $this/self from included files.
-         *
-         * @param  string $file
-         * @return void
-         */
-        self::$includeFile = static function($file) {
-            include $file;
-        };
     }
 }

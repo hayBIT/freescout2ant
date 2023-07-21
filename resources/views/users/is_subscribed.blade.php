@@ -1,1 +1,0 @@
-@if (App\Subscription::exists(['medium' => $medium, 'event' => $event], $subscriptions))checked="checked"@endif

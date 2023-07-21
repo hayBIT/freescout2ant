@@ -1,1 +1,0 @@
-@if (!empty($mailbox->mute) || (!empty($mailbox->settings) && $mailbox->settings->mute))<i class="glyphicon glyphicon-volume-off"></i> @endif
