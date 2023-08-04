@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Log;
 
 class CrmService
 {
-    private $file = 'ANT.txt';
+    private $fileName = '_ant.txt';
     public $base_url = 'https://mitarbeiterwebservice-maklerinfo.inte.dionera.dev/service/bd/employee/1.0/rest';
     public $ma = '/98A71H_UW7ZQ6';
     private $access_token;
@@ -18,6 +18,7 @@ class CrmService
     private $clientSecret;
     private $scope;
     private $code;
+    public $file;
 
 
     /**
@@ -25,9 +26,9 @@ class CrmService
      *
      * @return void
      */
-    public function __construct($code = '')
+    public function __construct($code = '', $userId = '')
     {
-        // $this->file = 'user_'.auth()->user()->id.'_'.$this->file;
+        $this->file = 'user_'.$userId.$this->fileName;
         $this->clientId = '67aa767e-2fe6-46e9-960f-74b871a849d1';
         $this->clientSecret = 'KA58FTs6vcBHSTTock1u1KmM3IjP4tGnuch03ZpX2ka5utWBxtl11qQuygal_XJ-4R9WxVa9';
         $this->scope = 'ameise/mitarbeiterwebservice'; // e.g., 'read write'

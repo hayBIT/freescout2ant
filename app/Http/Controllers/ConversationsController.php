@@ -42,7 +42,11 @@ class ConversationsController extends Controller
     public function __construct()
     {
         $this->middleware('auth');
-        $this->crmService = $crmService ?? new CrmService();
+        $this->middleware(function ($request, $next) {
+            $this->crmService = $this->crmService ?? new CrmService('', auth()->user()->id);
+            return $next($request);
+        });
+        
     }
 
     /**
@@ -344,8 +348,7 @@ class ConversationsController extends Controller
         }
         return view($template, [
             'conversation'       => $conversation,
-            'contracts'          => !empty($conversation->contracts) ? explode(',',$conversation->contracts) : null,
-            'divisions'          => !empty($conversation->divisons) ? explode(',',$conversation->divisons) : null,
+            'conversation_archives' => $conversation->crmArchives ?? null,
             'mailbox'            => $conversation->mailbox,
             'customer'           => $customer,
             'threads'            => \Eventy::filter('conversation.view.threads', $threads),

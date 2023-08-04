@@ -81,7 +81,45 @@
                     </select>
                     <button type="button" id="archive_btn"  style="display: none;"> Archive</button>
                     </form>
-                    <table id="crmArchiveTable"></table>
+                    @if ($conversation->crmArchives->isNotEmpty())
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>User</th>
+                                <th>Contracts</th>
+                                <th>Divisions</th>
+                                <!-- Add more columns as needed -->
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach ($conversation->crmArchives as $archive)
+                                <tr>
+                                    <td>{{ $archive->crm_user }}</td>
+                                    <td>
+                                        @php
+                                        $contracts = json_decode($archive->contracts, true);
+                                        @endphp
+                                        @if($contracts)
+                                        @foreach ($contracts as $contract)
+                                        <span class="tag">{{ $contract['text'] }}</span>
+                                        @endforeach
+                                        @endif
+                                    </td>
+                                    <td>@php
+                                        $divisions = json_decode($archive->divisions, true);
+                                        @endphp
+                                        @if($divisions)
+                                        @foreach ($divisions as $division)
+                                        <span class="tag">{{ $division['text'] }}</span>
+                                        @endforeach
+                                        @endif</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                    @else
+                        <p>No archives available for this conversation.</p>
+                    @endif
                     @if ($conversation->state != App\Conversation::STATE_DELETED)
                         <li>
                             <div class="btn-group" id="conv-assignee" data-toggle="tooltip" title="{{ __("Assignee") }}: {{ $conversation->getAssigneeName(true) }}">

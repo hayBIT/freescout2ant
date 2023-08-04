@@ -35,7 +35,7 @@ class SecureController extends Controller
     public function dashboard(Request $request)
     {
         if ($request->has('code')) {
-            $this->crmService = $crmService ?? new CrmService($request->get('code'));
+            $this->crmService = $this->crmService ?? new CrmService($request->get('code'), auth()->user()->id);
         }
         $user = auth()->user();
         if (!$user->isAdmin()) {
