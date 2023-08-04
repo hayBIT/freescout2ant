@@ -5,12 +5,18 @@ namespace App\Http\Controllers;
 use App\ActivityLog;
 use App\Misc\Helper;
 use App\SendLog;
+use App\Services\CrmService;
 use App\Thread;
 use App\User;
+use GuzzleHttp\Client;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Session;
+
+
 
 class SecureController extends Controller
 {
+    protected $crmService;
     /**
      * Create a new controller instance.
      *
@@ -26,8 +32,11 @@ class SecureController extends Controller
      *
      * @return \Illuminate\Http\Response
      */
-    public function dashboard()
+    public function dashboard(Request $request)
     {
+        if ($request->has('code')) {
+            $this->crmService = $crmService ?? new CrmService($request->get('code'));
+        }
         $user = auth()->user();
         if (!$user->isAdmin()) {
             $mailboxes = $user->mailboxesCanView();

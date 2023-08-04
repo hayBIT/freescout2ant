@@ -4365,6 +4365,31 @@ a.disabled:focus {
     -webkit-animation: spin 1000ms infinite linear;
     animation: spin 1000ms infinite linear;
 }
+#crm_user_form{
+    position: relative;
+}
+.input-group-addon {
+
+border: 0;
+position: absolute;
+right: 15px;
+}
+.input-group-addon .glyphicon {
+    font-size: 14px; /* Adjust the size as needed */
+    cursor: pointer;
+}  
+.glyphicon-spin {
+    animation: spin 1s infinite linear;
+}
+  
+@keyframes spin {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+}
 @-webkit-keyframes spin {
     0% {
         -webkit-transform: rotate(0deg);
@@ -4428,4 +4453,9 @@ a.disabled:focus {
     .col3-hidden {
         display: none;
     }
+}
+
+
+#contract-tag-dropdown .select2{
+    width: 400px !important;
 }

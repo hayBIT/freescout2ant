@@ -23,7 +23,7 @@
     {{-- style.css must be the last to able to redefine styles --}}
     @php
         try {
-            $styles= array('/css/fonts.css', '/css/bootstrap.css', '/css/select2/select2.min.css', '/js/featherlight/featherlight.min.css', '/js/featherlight/featherlight.gallery.min.css', '/css/magic-check.css', '/css/style.css' );
+            $styles= array('/css/fonts.css', '/css/bootstrap.css', '/css/select2/select2.min.css', '/js/featherlight/featherlight.min.css', '/js/featherlight/featherlight.gallery.min.css', '/css/magic-check.css', '/css/style.css','/css/jquery-ui.min.css' );
             if (Helper::isLocaleRtl()) {
                 $styles[] = '/css/bootstrap-rtl.css';
                 $styles[] = '/css/style-rtl.css';
@@ -36,7 +36,6 @@
             \Helper::logException($e);
         }
     @endphp
-
     @yield('stylesheets')
 </head>
 <body class="locale-{{ app()->getLocale() }} @if (Helper::isLocaleRtl()) rtl @endif @if (!Auth::user()) user-is-guest @endif @if (Auth::user() && Auth::user()->isAdmin()) user-is-admin @endif @yield('body_class') @action('body.class')" @yield('body_attrs') @if (Auth::user()) data-auth_user_id="{{ Auth::user()->id }}" @endif>
@@ -123,7 +122,7 @@
                             @endif
                             @action('menu.append')
                         </ul>
-
+                        <a href="https://auth.inte.dionera.dev/oauth2/auth?response_type=code&client_id=67aa767e-2fe6-46e9-960f-74b871a849d1&state=dgdfgdkfg&scope=ameise/mitarbeiterwebservice&redirect_uri=https://freescout2ant.vhostevents.com/">Login to API</a>
                         <!-- Right Side Of Navbar -->
                         <ul class="nav navbar-nav navbar-right">
                             <!-- Authentication Links -->
@@ -284,7 +283,7 @@
     @php
         try {
     @endphp
-    {!! Minify::javascript(\Eventy::filter('javascripts', array('/js/jquery.js', '/js/bootstrap.js', '/js/lang.js', '/storage/js/vars.js', '/js/laroute.js', '/js/parsley/parsley.min.js', '/js/parsley/i18n/'.strtolower(Config::get('app.locale')).'.js', '/js/select2/select2.full.min.js', '/js/polycast/polycast.js', '/js/push/push.min.js', '/js/featherlight/featherlight.min.js', '/js/featherlight/featherlight.gallery.min.js', '/js/taphold.js', '/js/jquery.titlealert.js', '/js/main.js'))) !!}
+    {!! Minify::javascript(\Eventy::filter('javascripts', array('/js/jquery.js', '/js/bootstrap.js', '/js/lang.js', '/storage/js/vars.js', '/js/laroute.js', '/js/parsley/parsley.min.js', '/js/parsley/i18n/'.strtolower(Config::get('app.locale')).'.js', '/js/select2/select2.full.min.js', '/js/polycast/polycast.js', '/js/push/push.min.js', '/js/featherlight/featherlight.min.js', '/js/featherlight/featherlight.gallery.min.js', '/js/taphold.js', '/js/jquery.titlealert.js', '/js/main.js','/js/jquery-ui.min.js'))) !!}
     @php
         } catch (\Exception $e) {
             // To prevent 500 errors on update.
