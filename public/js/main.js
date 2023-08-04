@@ -5250,7 +5250,6 @@ function crmUsers() {
 			}
 			processSelectedData($('#contract-tag-dropdown').select2('data'), 'contracts');
 			processSelectedData($('#division-tag-dropdown').select2('data'), 'divisions_data');
-			let table = $('#crmArchiveTable');
 			$.ajax({
 				url: '/archive',
 				method: 'POST', // Change to the appropriate HTTP method
@@ -5258,14 +5257,7 @@ function crmUsers() {
 				success: function (response) {
 					if (response.status) {
 						// Update the table with the saved data
-						let data = response.data;
-						let newRow = $('<tr>').append(
-							$('<td>').text(data.conversation_id),
-							$('<td>').text(data.crm_user),
-							$('<td>').text(data.contracts),
-							$('<td>').text(data.divisions)
-						);
-						table.append(newRow);
+						location.reload();
 					}
 			
 				},

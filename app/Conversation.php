@@ -2328,4 +2328,9 @@ class Conversation extends Model
             $thread->conversation->save();
         }
     }
+    
+    public function crmArchives()
+    {
+        return $this->hasMany(CrmArchive::class);
+    }
 }
