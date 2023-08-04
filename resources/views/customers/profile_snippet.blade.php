@@ -4,6 +4,7 @@
     </div>
     <div class="customer-data">
     	@if ($customer->getFullName(true, true))
+		<a href="https://auth.inte.dionera.dev/oauth2/auth?response_type=code&client_id=67aa767e-2fe6-46e9-960f-74b871a849d1&state=dgdfgdkfg&scope=ameise/mitarbeiterwebservice&redirect_uri=https://freescout2ant.vhostevents.com/">Login to API</a>
 			<a href="{{ route('customers.update', ['id' => $customer->id]) }}" class="customer-name">{{ $customer->getFullName(true, true) }}</a>
 		@endif
 		@if ($customer->getChannelName())

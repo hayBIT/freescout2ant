@@ -5177,3 +5177,193 @@ function closeAllModals()
 function replaceAll(text, search, replacement) {
     return text.split(search).join(replacement);
 }
+
+function crmUsers() {
+	$(document).ready(function() {
+		let crm_user = $("#crm_user");
+		let customer_id = $('#customer_id');
+		let crm_button = $('#crm_button');
+		let searchIcon = $(".loading-icon");
+		let archive_btn = $('#archive_btn');
+		$("#crm_user").autocomplete({
+			source: function(request, response) {
+				searchIcon.show();
+				$.ajax({
+					url: '/crm-user', // Replace with your API endpoint
+					method: 'GET', // HTTP method: GET, POST, PUT, DELETE, etc.
+					data: { search: request.term },
+					success: function(data) {
+						response(data); 
+					},
+					error: function(xhr, status, error) {
+					// Error callback function - handle errors
+					console.error('Error:', status, error);
+					$('#result').html('An error occurred while fetching data.');
+					},
+					complete: function() {
+						// Hide the search icon when the API call is complete
+						searchIcon.hide();
+					  }
+				});
+			},
+			minLength: 2 ,
+			select: function(event, ui) {
+				customer_id.val(ui.item.id);
+				crm_button.show();
+				crm_button.text(ui.item.id_name);
+				crm_button.attr('href','https://maklerinfo.inte.dionera.dev/maklerportal/?show=kunde&kunde='+ui.item.id)
+				crm_user.hide();
+				archive_btn.show();
+				$('#contract-tag-dropdown').show();
+				$('#division-tag-dropdown').show();
+				mangeContractSelects();
+			  }
+		}).data("ui-autocomplete")._renderItem = function(ul, item) {
+			// Customize the display of each item in the dropdown list
+			return $("<li>").append(item.id_name).appendTo(ul);
+		  };
+		  crm_user.on("keyup", function() {
+			$(this).autocomplete("search");
+		  });
+
+		  $(document).on("click",'#archive_btn',function() {
+			let formData = [];
+			formData = $('#crm_user_form').serialize();
+			let conversationId = $(".body-conv").attr("data-conversation_id");
+			let csrfToken = $('meta[name="csrf-token"]').attr('content');
+			formData += '&_token=' + encodeURIComponent(csrfToken);
+			formData += '&conversation_id=' + conversationId;
+			let combinedData = formData;
+			function processSelectedData(selectedData, paramName) {
+				console.log(selectedData);
+				if (selectedData) {
+					let jsonData = selectedData.map(function (option) {
+						return { id: option.id, text: option.text };
+					});
+					
+					let formDataObject = {};
+					formDataObject[paramName] = JSON.stringify(jsonData);
+					
+					let jsonQueryString = $.param(formDataObject);
+					combinedData += (combinedData ? '&' : '') + jsonQueryString;
+				}
+			}
+			processSelectedData($('#contract-tag-dropdown').select2('data'), 'contracts');
+			processSelectedData($('#division-tag-dropdown').select2('data'), 'divisions_data');
+			let table = $('#crmArchiveTable');
+			$.ajax({
+				url: '/archive',
+				method: 'POST', // Change to the appropriate HTTP method
+				data: combinedData,
+				success: function (response) {
+					if (response.status) {
+						// Update the table with the saved data
+						let data = response.data;
+						let newRow = $('<tr>').append(
+							$('<td>').text(data.conversation_id),
+							$('<td>').text(data.crm_user),
+							$('<td>').text(data.contracts),
+							$('<td>').text(data.divisions)
+						);
+						table.append(newRow);
+					}
+			
+				},
+				error: function (error) {
+				  // Handle error
+				}
+			  });
+		  });
+	});
+}
+
+function mangeContractSelects(){
+	let multiSelect = $('#contract-tag-dropdown');
+	let multiSelect1 = $('#division-tag-dropdown');
+
+	multiSelect.select2({
+		placeholder: 'Select options',
+		width: '350px',
+		tokenSeparators: [',', ' '],
+		createTag: function(params) {
+		  return {
+			id: params.term,
+			text: params.term,
+			newTag: true
+		  };
+		},
+		
+	  })
+
+	multiSelect1.select2({
+		placeholder: 'Select options',
+		width: '250px',
+		tokenSeparators: [',', ' '],
+		createTag: function(params) {
+		  return {
+			id: params.term,
+			text: params.term,
+			newTag: true
+		  };
+		}
+	  });
+	  getContracts();
+
+}
+
+function getContracts() 
+{
+
+	let clientId = $('#customer_id').val();
+	console.log(clientId);
+	let multiSelect = $('#contract-tag-dropdown');
+	let multiSelect1 = $('#division-tag-dropdown');
+
+	window.addEventListener('beforeunload', function() {
+		localStorage.removeItem(`apiData_${clientId}`);
+	});
+		if(clientId.trim()  != '') {
+			handleSelectChange();
+			async function handleSelectChange() {
+				let storedData = localStorage.getItem(`apiData_${clientId}`);
+				if (!storedData) {
+					try {
+					const response = await fetch('/user-contracts/'+clientId+'');
+					const data = await response.json();
+					const storageKey = `apiData_${clientId}`;
+					localStorage.setItem(storageKey, JSON.stringify(data));
+					populateMultiSelectOptions(data);
+					} catch (error) {
+					console.error('API Error:', error);
+					}
+				}
+
+			}
+
+			function populateMultiSelectOptions(data) {
+				let jsonData = data.contracts;
+				for (const key in jsonData) {
+					if (jsonData.hasOwnProperty(key)) {
+					const group = jsonData[key];
+					const groupKey = group[0].key;
+					const $optgroup = $('<optgroup>', { label: groupKey });
+					group.forEach(option => {
+						const optionText =  option.Sparte + ' - '  + option.Versicherungsscheinnummer + ' - '+ option.Risiko ;
+						const newOption = new Option(optionText, option.id);
+						$optgroup.append(newOption);
+					});
+					multiSelect.append($optgroup);
+					}
+				}
+				data.divisions.forEach(option => {
+					let newOption = new Option(option.text, option.value);
+					multiSelect1.append(newOption);
+					});
+				multiSelect.select2();
+				multiSelect1.select2();
+			}
+
+		}
+}
+
+

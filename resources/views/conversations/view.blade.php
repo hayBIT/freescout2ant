@@ -1,4 +1,5 @@
 @extends('layouts.app')
+<link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css" rel="stylesheet" />
 
 @section('title_full', '#'.$conversation->number.' '.$conversation->getSubject().($customer ? ' - '.$customer->getFullName(true) : ''))
 
@@ -66,6 +67,21 @@
                 </div>
 
                 <ul class="conv-info">
+                    <li>
+                    <form id="crm_user_form">
+                    <span class="input-group-addon loading-icon" style="display: none;">
+                        <span class="glyphicon glyphicon-refresh glyphicon-spin" aria-hidden="true"></span>
+                    </span>
+                    <input type="text" name="crm_id" id="crm_user">
+                    <input type="hidden" name="customer_id" id="customer_id" value="">
+                    <a style="display:none" id="crm_button" target="_blank"></a>
+                    <select name="contracts" style="display: none;width: 400px;" id="contract-tag-dropdown" multiple="multiple">
+                     </select>
+                    <select name="divisions"  style="display: none;width: 300px" id="division-tag-dropdown" multiple="multiple">
+                    </select>
+                    <button type="button" id="archive_btn"  style="display: none;"> Archive</button>
+                    </form>
+                    <table id="crmArchiveTable"></table>
                     @if ($conversation->state != App\Conversation::STATE_DELETED)
                         <li>
                             <div class="btn-group" id="conv-assignee" data-toggle="tooltip" title="{{ __("Assignee") }}: {{ $conversation->getAssigneeName(true) }}">
@@ -301,16 +317,15 @@
         </div>
     </div>
 @endsection
-
 @section('body_bottom')
     @parent
     @include('conversations.partials.settings_modal', ['conversation' => $conversation])
 @append
 
 @include('partials/editor')
-
 @section('javascript')
     @parent
     initReplyForm();
     initConversation();
+    crmUsers();
 @endsection

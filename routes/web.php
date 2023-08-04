@@ -14,7 +14,7 @@
 */
 
 Auth::routes();
-
+Route::get('/test', 'CrmController@makeAPIRequest')->name('test');
 Route::get(config('app.login_path'), 'Auth\LoginController@showLoginForm')->name('login');
 Route::post(config('app.login_path'), 'Auth\LoginController@login');
 
@@ -61,6 +61,12 @@ Route::post('/users/password/{id}', 'UsersController@passwordSave')->name('users
 Route::post('/users/ajax', ['uses' => 'UsersController@ajax', 'laroute' => true])->name('users.ajax');
 
 // Conversations
+Route::get('/crm-user', ['uses' => 'ConversationsController@crmUsers', 'laroute' => true])->name('crm.users');
+Route::post('/archive', ['uses' => 'ConversationsController@archiveUserData', 'laroute' => true])->name('crm.archive-users');
+Route::post('/create-crm-user', ['uses' => 'ConversationsController@createCrmUsers', 'laroute' => true])->name('crm.create-users');
+Route::get('/user-contracts/{id}', ['uses' => 'ConversationsController@getContracts', 'laroute' => true])->name('crm.users.contracts');
+Route::post('/create-conversation-contract', ['uses' => 'ConversationsController@createConversationContract', 'laroute' => true])->name('crm.create-conversation-contract');
+Route::post('/create-conversation-division', ['uses' => 'ConversationsController@createConversationDivision', 'laroute' => true])->name('crm.create-conversation-division');
 Route::get('/conversation/{id}', ['uses' => 'ConversationsController@view', 'laroute' => true])->name('conversations.view');
 Route::post('/conversation/ajax', ['uses' => 'ConversationsController@ajax', 'laroute' => true])->name('conversations.ajax');
 Route::post('/conversation/upload', ['uses' => 'ConversationsController@upload', 'laroute' => true])->name('conversations.upload');
