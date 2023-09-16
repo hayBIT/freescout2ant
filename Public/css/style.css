@@ -1,0 +1,21 @@
+.ameise-logo{
+    width: 27px;
+    height: auto;
+    margin-bottom: 7px;
+}
+.conversation-archives{
+    border:1px solid #ddd; border-radius:5px;margin:10px 20px 0 20px; padding:20px;
+}
+.contract-tag{
+    background-color: #337ab7; padding:5px 4px; color:white; font-size:12px;
+}
+.division-tag{
+    background-color:#5bc0de;padding:5px 4px;color:white; font-size:12px; margin-left:8px;
+}
+.tag-text{
+    color:white
+}
+
+ul.ui-menu.ui-front {
+    z-index: 9999;
+}

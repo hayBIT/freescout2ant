@@ -1,0 +1,25 @@
+{
+    "name": "freescout/ameisemodule",
+    "description": "",
+    "authors": [
+        {
+            "name": "FreeScout",
+            "email": "support@freescout.net"
+        }
+    ],
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Modules\\AmeiseModule\\Providers\\AmeiseModuleServiceProvider"
+            ],
+            "aliases": {
+                
+            }
+        }
+    },
+    "autoload": {
+        "psr-4": {
+            "Modules\\AmeiseModule\\": ""
+        }
+    }
+}

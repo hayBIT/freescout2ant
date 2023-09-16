@@ -1,0 +1,23 @@
+{
+    "name": "Ameise Module",
+    "alias": "ameisemodule",
+    "description": "This module adds connectivity of Ameise CRM to Freescout.",
+    "version": "1.0.0",
+    "detailsUrl": "",
+    "author": "Neetu",
+    "authorUrl": "",
+    "requiredAppVersion": "1.0.2",
+    "license": "AGPL-3.0",
+    "keywords": ["ameise", "crm", "connectivity"],
+    "active": 0,
+    "img": "/modules/ameisemodule/images/icon.png", 
+    "order": 0,
+    "providers": [
+        "Modules\\AmeiseModule\\Providers\\AmeiseModuleServiceProvider"
+    ],
+    "aliases": {},
+    "files": [
+        "start.php"
+    ],
+    "requires": []
+}
