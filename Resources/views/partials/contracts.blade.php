@@ -9,7 +9,7 @@
                             $user = json_decode($archive->crm_user, true);
                         @endphp
                         <a style="font-size:16px;" target="_blank"
-                            href="{{ (config('ameisemodule.ameise_mode') == 'test' ? 'https://maklerinfo.inte.dionera.dev/' : 'https://maklerinfo.biz/') }}/maklerportal/?show=kunde&kunde={{ $user['id'] }}">{{ $user['text'] }}</a>
+                            href="{{ (config('ameisemodule.ameise_mode') == 'test' ? 'https://maklerinfo.inte.dionera.dev' : 'https://maklerinfo.biz') }}/maklerportal/?show=kunde&kunde={{ $user['id'] }}">{{ $user['text'] }}</a>
                     </p>
                     @php
                         $contracts = json_decode($archive->contracts, true);

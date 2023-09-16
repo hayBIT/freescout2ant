@@ -44,7 +44,6 @@ $(document).ready(function() {
                                     $('#result').html('An error occurred while fetching data.');
                                 },
                                 complete: function() {
-                                    console.log("Sfdsfsddf");
                                     searchIcon.hide();
                                 }
                             });                           
@@ -52,15 +51,15 @@ $(document).ready(function() {
                         minLength: 2,
                         select: function(event, ui) {
                             customer_id.val(ui.item.id);
-                            crm_button.show().text(ui.item.id_name)
-                                .attr('href', `${base_url}/maklerportal/?show=kunde&kunde=${ui.item.id}`);
+                            crm_button.show().text(ui.item.text)
+                                .attr('href', `${base_url}maklerportal/?show=kunde&kunde=${ui.item.id}`);
                             $("#crm_user").hide();
                             archive_btn.show();
                             $('#contract-tag-dropdown, #division-tag-dropdown').show();
                             mangeContractSelects();
                         }
                     }).data("ui-autocomplete")._renderItem = function(ul, item) {
-                        return $("<li>").append(item.id_name).appendTo(ul);
+                        return $("<li>").append(item.text).appendTo(ul);
                     };
                 });
             }

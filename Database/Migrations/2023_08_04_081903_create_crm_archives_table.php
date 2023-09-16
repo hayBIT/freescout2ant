@@ -18,8 +18,8 @@ class CreateCrmArchivesTable extends Migration
             $table->unsignedBigInteger('conversation_id');
             $table->string('crm_user_id');
             $table->text('crm_user');
-            $table->text('contracts');
-            $table->text('divisions');
+            $table->text('contracts')->nullable();
+            $table->text('divisions')->nullable();
             $table->timestamps();
         });
     }

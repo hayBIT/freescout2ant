@@ -19,3 +19,25 @@
 ul.ui-menu.ui-front {
     z-index: 9999;
 }
+
+.form_user_crm{
+    position:relative;
+    margin-top:10px;
+    margin-bottom:16px;
+}
+
+span.loading-icon {
+    position: absolute;
+    right: 10px;
+    top: 5px;
+}
+
+#contract_block{
+    margin-top:10px;
+    margin-bottom:14px;
+}
+
+#contract_block .select2,
+#division_block .select2{
+    width:100% !important;
+}

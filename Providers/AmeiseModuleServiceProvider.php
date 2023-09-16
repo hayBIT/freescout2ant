@@ -7,8 +7,9 @@ use Illuminate\Database\Eloquent\Factory;
 use Eventy;
 use View;
 use Config;
+use Modules\AmeiseModule\Entities\CrmArchive;
 
-define( 'AMEISE_MODULE', 'ameisemodule' );
+define('AMEISE_MODULE', 'ameisemodule');
 
 class AmeiseModuleServiceProvider extends ServiceProvider
 {
@@ -29,17 +30,17 @@ class AmeiseModuleServiceProvider extends ServiceProvider
         $this->registerConfig();
         $this->registerViews();
         $this->registerFactories();
-        $viewPath = resource_path( 'views/modules/ameisemodule' );
+        $viewPath = resource_path('views/modules/ameisemodule');
 
-		$sourcePath = __DIR__ . '/../Resources/views';
+        $sourcePath = __DIR__ . '/../Resources/views';
 
-		$this->publishes( [
-			$sourcePath => $viewPath,
-		], 'views' );
+        $this->publishes([
+            $sourcePath => $viewPath,
+        ], 'views');
         $this->loadMigrationsFrom(__DIR__ . '/../Database/Migrations');
-        $this->loadViewsFrom( array_merge( array_map( function ( $path ) {
-			return $path . '/modules/ameisemodule';
-		}, Config::get( 'view.paths' ) ), [ $sourcePath ] ), 'ameise' );
+        $this->loadViewsFrom(array_merge(array_map(function ($path) {
+            return $path . '/modules/ameisemodule';
+        }, Config::get('view.paths')), [ $sourcePath ]), 'ameise');
         $this->hooks();
     }
 
@@ -48,15 +49,53 @@ class AmeiseModuleServiceProvider extends ServiceProvider
      */
     public function hooks()
     {
-        Eventy::addAction( 'menu.append', function () {
-            $crmService = new \Modules\AmeiseModule\Services\CrmService( '', auth()->user()->id );
+        Eventy::addAction('menu.append', function () {
+            $crmService = new \Modules\AmeiseModule\Services\CrmService('', auth()->user()->id);
             $url = $crmService->getAuthURl();
-			echo View::make( 'ameise::partials/menu', ['url' => $url] )->render();
-		} );
+            echo View::make('ameise::partials/menu', ['url' => $url])->render();
+        });
 
-        Eventy::addAction( 'conversation.action_buttons', function () {
-			echo View::make( 'ameise::partials/conversation_button')->render();
-		}, 10, 2 );
+        Eventy::addAction('conversation.action_buttons', function () {
+            echo View::make('ameise::partials/conversation_button')->render();
+        }, 10, 2);
+
+        Eventy::addAction('conversation.send_reply_save', function ($conversation) {
+            $filePath = storage_path('user_' . auth()->user()->id . '_ant.txt');
+
+            if (file_exists($filePath) && $conversation->type == 1) {
+                $crmService = new \Modules\AmeiseModule\Services\CrmService('', auth()->user()->id);
+                $response = $crmService->fetchUserByEamil($conversation->customer_email);
+
+                if (count($response) == 1) {
+                    $crm_user_id = $response[0]['Id'];
+
+                    $conversation_data = [
+                        'type' => 'email',
+                        'x-dio-metadaten' => [],
+                        'X-Dio-Zuordnungen' => [['Typ' => 'kunde', 'Id' => $crm_user_id]],
+                        'subject' => $conversation->subject,
+                        'body' => $conversation->preview,
+                    ];
+
+                    if (!empty($conversation->cc)) {
+                        $conversation_data['x-dio-metadaten'][] = ['Value' => 'cc', 'Text' => implode(', ', json_decode($conversation->cc))];
+                    }
+
+                    if (!empty($conversation->bcc)) {
+                        $conversation_data['x-dio-metadaten'][] = ['Value' => 'bcc', 'Text' => implode(', ', json_decode($conversation->bcc))];
+                    }
+
+                    $crmService->archiveConversation($conversation_data);
+
+                    $crm_archive = CrmArchive::firstOrNew(['conversation_id' => $conversation->id, 'crm_user_id' => $crm_user_id]);
+                    $crm_archive->crm_user = json_encode(['id' => $crm_user_id, 'text' => $response[0]['Text']]);
+                    $crm_archive->contracts = null;
+                    $crm_archive->divisions = null;
+                    $crm_archive->save();
+                }
+            }
+
+        });
     }
 
     /**
@@ -80,7 +119,8 @@ class AmeiseModuleServiceProvider extends ServiceProvider
             __DIR__.'/../Config/config.php' => config_path('ameisemodule.php'),
         ], 'config');
         $this->mergeConfigFrom(
-            __DIR__.'/../Config/config.php', 'ameisemodule'
+            __DIR__.'/../Config/config.php',
+            'ameisemodule'
         );
     }
 
@@ -97,7 +137,7 @@ class AmeiseModuleServiceProvider extends ServiceProvider
 
         $this->publishes([
             $sourcePath => $viewPath
-        ],'views');
+        ], 'views');
 
         $this->loadViewsFrom(array_merge(array_map(function ($path) {
             return $path . '/modules/ameisemodule';

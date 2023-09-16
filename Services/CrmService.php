@@ -189,6 +189,36 @@ class CrmService
         }
     }
 
+    public function fetchUserByEamil($email)
+    {
+        try {
+            $this->getAccessToken();
+            // Make an API request using the access token
+            $client = new Client();
+            $body = json_encode([
+                'mail' => $email,
+            ]);
+            $response = $client->get($this->base_url . $this->ma . '/kunden/_search', [
+                'headers' => [
+                    'Authorization' => 'Bearer ' . $this->access_token,
+                ],
+                'body' => $body
+            ]);
+            if ($response->getStatusCode() === 200) {
+                $responseData = json_decode($response->getBody(), true);
+            } elseif ($response->getStatusCode() === 401) {
+                $this->disconnectAmeise();
+            } else {
+                $errorResponse = json_decode($response->getBody(), true);
+            }
+            return $responseData;
+        } catch (Exception $e) {
+            if ($e->getCode() === 401) {
+                $this->disconnectAmeise();
+            }
+        }
+    }
+
     public function getContracts($customerId)
     {
         try {
@@ -251,7 +281,6 @@ class CrmService
             'X-Dio-Zuordnungen' =>  json_encode($data['X-Dio-Zuordnungen']),
             'Authorization' => 'Bearer ' . $this->access_token,
         ];
-
         try {
             $response = $client->request('POST', $this->base_url . $this->ma . '/archiveintraege', [
                 'headers' => $headers,
@@ -265,6 +294,7 @@ class CrmService
             } else {
                 $errorResponse = json_decode($response->getBody(), true);
             }
+            return $responseData;
         } catch (Exception $e) {
             if ($e->getCode() === 401) {
                 $this->disconnectAmeise();

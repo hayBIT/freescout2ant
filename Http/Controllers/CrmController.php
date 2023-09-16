@@ -34,6 +34,7 @@ class CrmController extends Controller
                 foreach($response as $data) {
                     $crmUsers[] = array(
                         'id' => $data['Id'],
+                        'text' => $data['Text'],
                         'id_name' => $data['Person']['Vorname']." ".$data['Person']['Nachname']."(".$data['Id'].")",
                         'first_name' => $data['Person']['Vorname'],
                         'last_name'  => $data['Person']['Nachname'],
@@ -110,12 +111,12 @@ class CrmController extends Controller
                 $response = $this->crmService->archiveConversation($conversation_data);
                 $crm_archive = CrmArchive::where(
                     ['conversation_id'=> $inputs['conversation_id'],
-                    'crm_user_id'=> $inputs['crm_user_id']
+                    'crm_user_id'=> $inputs['customer_id']
                     ])->first();
                 
                 if(!$crm_archive) {
                     $crm_archive = new CrmArchive();
-                    $crm_archive->crm_user_id = $inputs['crm_user_id'];
+                    $crm_archive->crm_user_id = $inputs['customer_id'];
                     $crm_archive->conversation_id = $inputs['conversation_id'];
                 }
                 $crm_archive->crm_user = $inputs['crm_user_data'];
@@ -135,9 +136,11 @@ class CrmController extends Controller
             return '';
         }
         $archives = CrmArchive::where('conversation_id', $id)->orderBy('id','DESC')->get();
+        $firstRecord = $archives->first(); // Get the first record
         return view('ameise::partials.contracts', [
             'archives' => $archives,
         ])->render();
+        
     }
 
     public function getArchive() {
