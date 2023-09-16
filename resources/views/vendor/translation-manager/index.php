@@ -1,1 +1,0 @@
-<?php echo view('vendor/translation-manager/index')->render(); ?>
