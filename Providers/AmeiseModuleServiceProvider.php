@@ -96,7 +96,63 @@ class AmeiseModuleServiceProvider extends ServiceProvider
             }
 
         });
+        $this->registerSettings();
     }
+
+    private function registerSettings() {
+		// Add item to settings sections.
+		Eventy::addFilter( 'settings.sections', function ( $sections ) {
+			$sections['ameise'] = [ 'title' => __( 'Ameise' ), 'icon' => 'headphones', 'order' => 200 ];
+
+			return $sections;
+		}, 15 );
+
+		// Section settings
+		Eventy::addFilter( 'settings.section_settings', function ( $settings, $section ) {
+			if ( $section !== 'ameise' ) {
+				return $settings;
+			}
+
+			$settings['ameise_client_secret'] = config( 'ameisemodule.ameise_client_secret' );
+            $settings['ameise_mode'] = config( 'ameisemodule.ameise_mode' );
+            $settings['ameise_client_id'] = config( 'ameisemodule.ameise_client_id' );
+            $settings['ameise_redirect_uri'] = config( 'ameisemodule.ameise_redirect_uri' );
+			return $settings;
+		}, 20, 2 );
+
+		// Section parameters.
+		Eventy::addFilter( 'settings.section_params', function ( $params, $section ) {
+			if ( $section !== 'ameise' ) {
+				return $params;
+			}
+
+			$params['settings'] = [
+				'ameise_client_secret' => [
+					'env' => 'AMEISE_CLIENT_SECRET',
+				],
+                'ameise_mode' => [
+					'env' => 'AMEISE_MODE',
+				],
+                'ameise_client_id' => [
+					'env' => 'AMEISE_CLIENT_ID',
+				],
+                'ameise_redirect_uri' => [
+					'env' => 'AMEISE_REDIRECT_URI',
+				],
+			];
+
+			return $params;
+		}, 20, 2 );
+
+		// Settings view name
+		Eventy::addFilter( 'settings.view', function ( $view, $section ) {
+			if ( $section !== 'ameise' ) {
+				return $view;
+			}
+
+			return 'ameisemodule::settings';
+		}, 20, 2 );
+	}
 
     /**
      * Register the service provider.
