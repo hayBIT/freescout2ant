@@ -116,7 +116,7 @@ class AmeiseModuleServiceProvider extends ServiceProvider
 			$settings['ameise_client_secret'] = config( 'ameisemodule.ameise_client_secret' );
             $settings['ameise_mode'] = config( 'ameisemodule.ameise_mode' );
             $settings['ameise_client_id'] = config( 'ameisemodule.ameise_client_id' );
-            $settings['ameise_redirect_uri'] = config( 'ameisemodule.ameise_redirect_uri' );
+            $settings['ameise_redirect_uri'] = route('crm.auth');
 			return $settings;
 		}, 20, 2 );
 
