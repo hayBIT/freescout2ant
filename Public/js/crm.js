@@ -201,7 +201,7 @@ $(document).ready(function() {
 });
 
 window.addEventListener('DOMContentLoaded', (event) => {
-    let coversation = document.getElementById('conv-layout-main');
+    let coversation = document.getElementById('conv-layout-customer');
     if (document.getElementById('contracts-list')) {
         document.getElementById('contracts-list').remove();
     }
@@ -212,7 +212,8 @@ window.addEventListener('DOMContentLoaded', (event) => {
       .then(html => {
         // Create a container div to hold the HTML
         let container = document.createElement('div');
-        container.style.overflowY = 'auto';
+        container.classList.add('conv-sidebar-block');
+        container.style.backgroundColor = '#f8f9f9';
         container.innerHTML = html;
 
         // Append the container to the "coversation" element
