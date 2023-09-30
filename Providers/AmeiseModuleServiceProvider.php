@@ -49,14 +49,10 @@ class AmeiseModuleServiceProvider extends ServiceProvider
      */
     public function hooks()
     {
-        Eventy::addAction('menu.append', function () {
+        Eventy::addAction('conversation.action_buttons', function () {
             $crmService = new \Modules\AmeiseModule\Services\CrmService('', auth()->user()->id);
             $url = $crmService->getAuthURl();
-            echo View::make('ameise::partials/menu', ['url' => $url])->render();
-        });
-
-        Eventy::addAction('conversation.action_buttons', function () {
-            echo View::make('ameise::partials/conversation_button')->render();
+            echo View::make('ameise::partials/conversation_button',['url' => $url])->render();
         }, 10, 2);
 
         Eventy::addAction('layout.body_bottom', function () {

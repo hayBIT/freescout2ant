@@ -4,13 +4,18 @@
 @if (file_exists(storage_path('user_' . auth()->user()->id . '_ant.txt')))
     <a href="#" data-toggle="modal" data-target="#ameise-modal" title="{{ __('Add to Ameise') }}" aria-label="{{ __('Add to Ameise') }}"> <img class="ameise-logo" alt="logo"
         src="{{ Module::getPublicPath(AMEISE_MODULE) . '/images/ameise_icon_bold.svg' }}"></a>
-    
-    <link href="{{ asset(Module::getPublicPath(AMEISE_MODULE) . '/css/style.css') }}" rel="stylesheet" type="text/css">
-    @section('javascripts')
-        @parent
-        <link href="{{ asset(Module::getPublicPath(AMEISE_MODULE) . '/css/jquery-ui.min.css') }}" rel="stylesheet"
-            type="text/css">
-        <script src="{{ Module::getPublicPath(AMEISE_MODULE) . '/js/jquery-ui.min.js' }}"></script>
-        <script src="{{ Module::getPublicPath(AMEISE_MODULE) . '/js/crm.js' }}"></script>
-    @endsection
+@else
+    @php
+        session(['redirect_back' => url()->current()]);
+    @endphp
+    <a href="{{$url}}" title="{{ __('Connect to Ameise') }}" aria-label="{{ __('Connect to Ameise') }}"> <img class="ameise-logo" alt="logo"
+    src="{{ Module::getPublicPath(AMEISE_MODULE) . '/images/ameise_icon_bold.svg' }}"></a>
 @endif
+<link href="{{ asset(Module::getPublicPath(AMEISE_MODULE) . '/css/style.css') }}" rel="stylesheet" type="text/css">
+@section('javascripts')
+    @parent
+    <link href="{{ asset(Module::getPublicPath(AMEISE_MODULE) . '/css/jquery-ui.min.css') }}" rel="stylesheet"
+        type="text/css">
+    <script src="{{ Module::getPublicPath(AMEISE_MODULE) . '/js/jquery-ui.min.js' }}"></script>
+    <script src="{{ Module::getPublicPath(AMEISE_MODULE) . '/js/crm.js' }}"></script>
+@endsection

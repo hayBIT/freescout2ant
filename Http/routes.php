@@ -6,6 +6,5 @@ Route::group(['middleware' => 'web', 'prefix' => \Helper::getSubdirectory(), 'na
     Route::get('/crm/{id}/get-contracts', ['uses' => 'CrmController@getContracts'])->name('crm.get.contracts');
     Route::post('/crm/ajax', ['uses' => 'CrmController@ajax', 'laroute' => true])->name('crm.ajax');
     Route::post('/crm/auth', ['uses' => 'AmeiseModuleController@auth', 'laroute' => true])->name('crm.auth');
-    Route::get('/disconnect-ameise', 'AmeiseModuleController@disconnectAmeise')->name('disconnect.ameise');
 
 });

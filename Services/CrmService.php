@@ -56,6 +56,7 @@ class CrmService
             $this->refresh_token = $tokens->refresh_token;
             $this->createTokenFile();
         }
+        return $this->access_token;
     }
 
     public function dateTimePassed(string $dt_to_check): bool
@@ -110,7 +111,7 @@ class CrmService
                 $this->userInfo();
             } else {
                 unlink($filePath);
-                $errorResponse = json_decode($response->getBody(), true);
+                json_decode($response->getBody(), true);
             }
         } catch (Exception $e) {
             // Handle other exceptions
