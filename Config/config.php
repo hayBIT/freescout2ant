@@ -8,6 +8,6 @@ return [
     'ameise_client_id' => env('AMEISE_CLIENT_ID', '67aa767e-2fe6-46e9-960f-74b871a849d1'),
     'ameise_state' => env('AMEISE_STATE', 'freescout'),
     'ameise_scope' => env('AMEISE_SCOPE', 'ameise/mitarbeiterwebservice offline_access'),
-    'ameise_redirect_uri' => env('AMEISE_REDIRECT_URI', 'https://freescout2ant.vhostevents.com/')
+    'ameise_redirect_uri' => env('AMEISE_REDIRECT_URI', '/crm/auth'),
 
 ];

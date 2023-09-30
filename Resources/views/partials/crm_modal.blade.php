@@ -1,9 +1,13 @@
-<div>
-  <div class="text-larger">
-  {{ __('Add to ameise') }}
-</div>
+<div class="modal fade" tabindex="-1" role="dialog" id="ameise-modal">
+  <div class="modal-dialog" role="document">
+      <div class="modal-content">
+          <div class="modal-header">
+              <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+              <h4 class="modal-title">{{ __('Add to ameise') }}</h4>
+          </div>
+          <div class="modal-body">
 <form id="crm_user_form">
-    <span>Please search</span>
+    <span>{{__('Search')}}</span>
     <div class="form_user_crm">
         <span class="loading-icon" style="display: none;">
           <span class="glyphicon glyphicon-refresh glyphicon-spin" aria-hidden="true"></span>
@@ -24,9 +28,13 @@
       id="division-tag-dropdown" multiple="multiple">
       </select>
       </div>
-      <div class="form-group margin-top">
-              <button type="button" class="btn btn-primary add-to-calendar-ok" id="archive_btn" style="display: none;">{{ __('Archive') }}</button>
-              <button class="btn btn-link" data-dismiss="modal">{{ __('Cancel') }}</button>
-          </div>
+     
   </form>
+</div>
+<div class="modal-footer">
+  <button type="button" class="btn btn-default" data-dismiss="modal">{{ __('Cancel') }}</button>
+  <button type="button" class="btn btn-primary" id="archive_btn" style="display: none;">{{ __('Archive') }}</button>
+</div>
+</div>
+</div>
 </div>

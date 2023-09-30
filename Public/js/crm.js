@@ -1,68 +1,48 @@
 $(document).ready(function() {
     const csrfToken = $('meta[name="csrf-token"]').attr('content');
-    let conversationArchive = '';
-    fetch('/crm/get-archive')
-    .then(response => response.text())
-    .then(html => {
-      // Create a container div to hold the HTML
-    //   let container = document.createElement('div');
-    //   container.style.overflowY = 'auto';
-    //   container.innerHTML = html;
-      conversationArchive = html;
-      // Append the container to the "coversation" element
-      //coversation.append(container);
-    })
-    .catch(error => {
-      console.log("Something went wrong:", error);
-    });
+    $('#ameise-modal').on('show.bs.modal', function (e) {
+        const searchIcon = $(".loading-icon"); 
+        const customer_id = $('#customer_id');
+        const crm_button = $('#crm_button');
+        const archive_btn = $('#archive_btn');
 
-    $(".conv-add-to-ameise").click(function(e) {
-        showModalDialog(conversationArchive, {
-            on_show: function(modal) {
-                const searchIcon = $(".loading-icon"); 
-                const customer_id = $('#customer_id');
-                const crm_button = $('#crm_button');
-                const archive_btn = $('#archive_btn');
-       
-                $(document).on('keydown.autocomplete', '#crm_user', function(e) {
-                    $(this).autocomplete({
-                        source: function(request, response) {
-                            searchIcon.show();
-                            $.ajax({
-                                url: '/crm/ajax',
-                                method: 'POST',
-                                data: {
-                                    search: request.term,
-                                    action: 'crm_users_search',
-                                    _token: csrfToken
-                                },
-                                success: function(data) {
-                                    response(data);
-                                },
-                                error: function(xhr, status, error) {
-                                    console.error('Error:', status, error);
-                                    $('#result').html('An error occurred while fetching data.');
-                                },
-                                complete: function() {
-                                    searchIcon.hide();
-                                }
-                            });                           
+        $(document).on('keydown.autocomplete', '#crm_user', function(e) {
+            $(this).autocomplete({
+                source: function(request, response) {
+                    searchIcon.show();
+                    $.ajax({
+                        url: '/crm/ajax',
+                        method: 'POST',
+                        data: {
+                            search: request.term,
+                            action: 'crm_users_search',
+                            _token: csrfToken
                         },
-                        minLength: 2,
-                        select: function(event, ui) {
-                            customer_id.val(ui.item.id);
-                            crm_button.show().text(ui.item.text)
-                                .attr('href', `${base_url}maklerportal/?show=kunde&kunde=${ui.item.id}`);
-                            $("#crm_user").hide();
-                            archive_btn.show();
-                            $('#contract-tag-dropdown, #division-tag-dropdown').show();
-                            mangeContractSelects();
+                        success: function(data) {
+                            response(data);
+                        },
+                        error: function(xhr, status, error) {
+                            console.error('Error:', status, error);
+                            $('#result').html('An error occurred while fetching data.');
+                        },
+                        complete: function() {
+                            searchIcon.hide();
                         }
-                    }).data("ui-autocomplete")._renderItem = function(ul, item) {
-                        return $("<li>").append(item.text).appendTo(ul);
-                    };
-                });
-            }
+                    });                           
+                },
+                minLength: 2,
+                select: function(event, ui) {
+                    customer_id.val(ui.item.id);
+                    crm_button.show().text(ui.item.text)
+                        .attr('href', `${base_url}maklerportal/?show=kunde&kunde=${ui.item.id}`);
+                    $("#crm_user").hide();
+                    archive_btn.show();
+                    $('#contract-tag-dropdown, #division-tag-dropdown').show();
+                    mangeContractSelects();
+                }
+            }).data("ui-autocomplete")._renderItem = function(ul, item) {
+                return $("<li>").append(item.text).appendTo(ul);
+            };
         });
     });
 

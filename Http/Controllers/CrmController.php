@@ -142,8 +142,4 @@ class CrmController extends Controller
         ])->render();
         
     }
-
-    public function getArchive() {
-        return view('ameise::partials.crm_modal')->render();
-    }
 }
