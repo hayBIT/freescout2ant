@@ -30,7 +30,7 @@
         <label for="" class="col-sm-2 control-label">{{ __('Redirect URL') }}</label>
 
         <div class="col-sm-6">
-            <input class="form-control" name="settings[ameise_redirect_uri]" type="text" value="{{ old('settings[ameise_redirect_uri]', $settings['ameise_redirect_uri'])}}">
+            <input class="form-control" name="settings[ameise_redirect_uri]" type="text" value="{{ old('settings[ameise_redirect_uri]', $settings['ameise_redirect_uri'])}}" readonly>
         </div>
     </div>
 
