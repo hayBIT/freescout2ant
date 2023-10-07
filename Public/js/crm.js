@@ -181,27 +181,29 @@ $(document).ready(function() {
     }
 });
 
-window.addEventListener('DOMContentLoaded', (event) => {
-    let coversation = document.getElementById('conv-layout-customer');
-    if (document.getElementById('contracts-list')) {
-        document.getElementById('contracts-list').remove();
-    }
-    let conversationId = document.body.getAttribute('data-conversation_id');
-    if (coversation) {
-      fetch('/crm/'+conversationId+'/get-contracts')
-      .then(response => response.text())
-      .then(html => {
-        // Create a container div to hold the HTML
-        let container = document.createElement('div');
-        container.classList.add('conv-sidebar-block');
-        container.style.backgroundColor = '#f8f9f9';
-        container.innerHTML = html;
+    window.addEventListener('DOMContentLoaded', (event) => {
+        let coversation = document.getElementById('conv-layout-customer');
+        if (document.getElementById('contracts-list')) {
+            document.getElementById('contracts-list').remove();
+        }
+        let conversationId = document.body.getAttribute('data-conversation_id');
+        if (coversation) {
+        fetch('/crm/'+conversationId+'/get-contracts')
+        .then(response => response.text())
+        .then(html => {
+            // Create a container div to hold the HTML
+            if (html.trim() !== '') {
+            let container = document.createElement('div');
+            container.classList.add('conv-sidebar-block');
+            container.style.backgroundColor = '#f8f9f9';
+            container.innerHTML = html;
 
-        // Append the container to the "coversation" element
-        coversation.append(container);
-      })
-      .catch(error => {
-        console.log("Something went wrong:", error);
-      });
-    }
-  });
+            // Append the container to the "coversation" element
+            coversation.append(container);
+            }
+        })
+        .catch(error => {
+            console.log("Something went wrong:", error);
+        });
+        }
+    });

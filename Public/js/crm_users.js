@@ -89,19 +89,19 @@ $(document).ready(function() {
       </div>`;
       // Check if user data exists before adding it
       if (selectedUser.record.first_name && selectedUser.record.last_name) {
-          userDetailDiv.innerHTML += `<div class="user-data">User Name: ${selectedUser.record.first_name} ${selectedUser.record.last_name}</div>`;
+          userDetailDiv.innerHTML += `<div class="user-data">${translations.userName}: ${selectedUser.record.first_name} ${selectedUser.record.last_name}</div>`;
       }
 
       if (selectedUser.record.email) {
-          userDetailDiv.innerHTML += `<div class="user-data">Email: ${selectedUser.record.email}</div>`;
+          userDetailDiv.innerHTML += `<div class="user-data">${translations.email}: ${selectedUser.record.email}</div>`;
       }
 
       if (selectedUser.record.address) {
-          userDetailDiv.innerHTML += `<div class="user-data">Address: ${selectedUser.record.address}</div>`;
+          userDetailDiv.innerHTML += `<div class="user-data">${translations.address}: ${selectedUser.record.address}</div>`;
       }
       // Check if 'phones' is an array and not empty
       if (Array.isArray(selectedUser.record.phones) && selectedUser.record.phones.length > 0) {
-          userDetailDiv.innerHTML += `<div class="user-data">Phones: ${selectedUser.record.phones.join(', ')}</div>`;
+          userDetailDiv.innerHTML += `<div class="user-data">${translations.phones}: ${selectedUser.record.phones.join(', ')}</div>`;
       }
 
       // Check if userDetailDiv has any content before appending it

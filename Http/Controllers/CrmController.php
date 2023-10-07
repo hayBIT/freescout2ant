@@ -88,20 +88,17 @@ class CrmController extends Controller
                 $conversation_data = [];
                 $crm_user_id = $crm_user['id'];
                 if ($conversation && $conversation->type == 1) {
-                    $cc = json_decode($conversation->cc);
-                    $bcc = json_decode($conversation->bcc);
-
                     $conversation_data = [
                         'type' => 'email',
                         'x-dio-metadaten' => [],
                     ];
-
-                    if (!empty($cc)) {
-                        $conversation_data['x-dio-metadaten'][] = ['Value' => 'cc', 'Text' => implode(', ', $cc)];
+                    
+                    if (!empty($conversation->cc)) {
+                        $conversation_data['x-dio-metadaten'][] = ['Value' => 'cc', 'Text' => implode(', ', json_decode($conversation->cc))];
                     }
 
-                    if (!empty($bcc)) {
-                        $conversation_data['x-dio-metadaten'][] = ['Value' => 'bcc', 'Text' => implode(', ', $bcc)];
+                    if (!empty($conversation->bcc)) {
+                        $conversation_data['x-dio-metadaten'][] = ['Value' => 'bcc', 'Text' => implode(', ', json_decode($conversation->bcc))];
                     }
                 } elseif($conversation && $conversation->type == 2) {
                     $conversation_data = [
@@ -146,7 +143,9 @@ class CrmController extends Controller
             return '';
         }
         $archives = CrmArchive::where('conversation_id', $id)->orderBy('id','DESC')->get();
-        $firstRecord = $archives->first(); // Get the first record
+        if(!$archives){
+            return false;
+        }
         return view('ameise::partials.contracts', [
             'archives' => $archives,
         ])->render();

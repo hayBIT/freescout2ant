@@ -2,4 +2,12 @@
 @section('javascripts')
     @parent
     <script src="{{ Module::getPublicPath(AMEISE_MODULE) . '/js/crm_users.js' }}"></script>
+    <script>
+            let translations = {
+                userName: '{{ __('User Name') }}',
+                email: '{{ __('Email') }}',
+                address: '{{ __('Address') }}',
+                phones: '{{ __('Phones') }}'
+            };
+    </script>
 @endsection
