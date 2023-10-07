@@ -48,3 +48,28 @@ span.loading-icon {
 #division_block .select2{
     width:100% !important;
 }
+
+.crm-user-panel{
+    margin-top: 50px;
+}
+
+.crm-user-panel .panel-title a {
+    color: #2a3b47;
+    font-size: 13.4px;
+    font-weight: bold;
+    background: #f1f3f5;
+}
+
+.user-panel-body{
+    background-color: #f8f9f9;
+}
+
+.user-data{
+    font-size: 14px;
+    border-bottom: 1px solid #dedede; 
+    padding:6px 0;
+}
+
+.crm-user-panel .panel{
+    border: 0;
+}

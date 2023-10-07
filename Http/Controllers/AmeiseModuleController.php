@@ -15,14 +15,6 @@ class AmeiseModuleController extends Controller
      * @return Response
      */
 
-    public function __construct()
-    {
-        $this->middleware(function ($request, $next) {
-            $this->crmService = $this->crmService ?? new CrmService('', auth()->user()->id);
-            return $next($request);
-        });
-    }
-
     public function auth(Request $request){
         if ($request->has('code')) {
             $this->crmService = $this->crmService ?? new CrmService($request->get('code'), auth()->user()->id);

@@ -190,6 +190,32 @@ class CrmService
         }
     }
 
+    public function fetchUserDetail($id, $endPoints)
+    {
+        try {
+            $this->getAccessToken();
+            // Make an API request using the access token
+            $client = new Client();
+            $response = $client->get($this->base_url . $this->ma . '/kunden/' . $id.'/'.$endPoints, [
+                'headers' => [
+                    'Authorization' => 'Bearer ' . $this->access_token,
+                ],
+            ]);
+            if ($response->getStatusCode() === 200) {
+                $responseData = json_decode($response->getBody(), true);
+            } elseif ($response->getStatusCode() === 401) {
+                $this->disconnectAmeise();
+            } else {
+                $errorResponse = json_decode($response->getBody(), true);
+            }
+            return $responseData;
+        } catch (Exception $e) {
+            if ($e->getCode() === 401) {
+                $this->disconnectAmeise();
+            }
+        }
+    }
+
     public function fetchUserByEamil($email)
     {
         try {

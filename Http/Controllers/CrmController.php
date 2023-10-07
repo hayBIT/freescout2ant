@@ -30,8 +30,16 @@ class CrmController extends Controller
         switch ($request->action) {
             case 'crm_users_search':
                 $response = $this->crmService->fetchUserByIdOrName($inputs['search']);
-                $crmUsers = [];
+                $crmUsers = $emails = $phone =  [];
                 foreach($response as $data) {
+                    $contactDetails = $this->crmService->fetchUserDetail($data['Id'],'kontaktdaten');
+                    foreach ($contactDetails as $item) {
+                        if ($item["Typ"] === "email") {
+                            $emails[] = $item["Value"];
+                        } elseif($item['Typ']== 'telefon'){
+                            $phone [] = $item['Value'];
+                        }
+                    }
                     $crmUsers[] = array(
                         'id' => $data['Id'],
                         'text' => $data['Text'],
@@ -41,7 +49,9 @@ class CrmController extends Controller
                         'address'    => $data['Hauptwohnsitz']['Strasse'],
                         'zip'        => $data['Hauptwohnsitz']['Postleitzahl'],
                         'city'       => $data['Hauptwohnsitz']['Postleitzahl'],
-                        'country'    => $data['Hauptwohnsitz']['Land']
+                        'country'    => $data['Hauptwohnsitz']['Land'],
+                        'emails'     => $emails,
+                        'phones'     => $phone
                     );
                 }
                 return response()->json($crmUsers);

@@ -59,6 +59,10 @@ class AmeiseModuleServiceProvider extends ServiceProvider
             echo View::make('ameise::partials/crm_modal')->render();
         }, 10, 2);
 
+        Eventy::addAction('layout.body_bottom', function () {
+            echo View::make('ameise::partials/crm_users')->render();
+        }, 10, 2);
+
         Eventy::addAction('conversation.send_reply_save', function ($conversation) {
             $filePath = storage_path('user_' . auth()->user()->id . '_ant.txt');
 
