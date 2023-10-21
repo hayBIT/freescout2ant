@@ -14,8 +14,8 @@
 <link href="{{ asset(Module::getPublicPath(AMEISE_MODULE) . '/css/style.css') }}" rel="stylesheet" type="text/css">
 @section('javascripts')
     @parent
-    <link href="{{ asset(Module::getPublicPath(AMEISE_MODULE) . '/css/jquery-ui.min.css') }}" rel="stylesheet"
+    <link href="{{ asset(Module::getPublicPath(AMEISE_MODULE) . '/css/awesomplete.css') }}" rel="stylesheet"
         type="text/css">
-    <script src="{{ Module::getPublicPath(AMEISE_MODULE) . '/js/jquery-ui.min.js' }}"></script>
+    <script src="{{ Module::getPublicPath(AMEISE_MODULE) . '/js/awesomplete.js' }}"></script>
     <script src="{{ Module::getPublicPath(AMEISE_MODULE) . '/js/crm.js' }}"></script>
 @endsection

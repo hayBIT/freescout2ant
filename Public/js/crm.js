@@ -6,44 +6,45 @@ $(document).ready(function() {
         const crm_button = $('#crm_button');
         const archive_btn = $('#archive_btn');
 
-
-        $(document).on('keydown.autocomplete', '#crm_user', function(e) {
-            $(this).autocomplete({
-                source: function(request, response) {
-                    searchIcon.show();
-                    $.ajax({
-                        url: '/crm/ajax',
-                        method: 'POST',
-                        data: {
-                            search: request.term,
-                            action: 'crm_users_search',
-                            _token: csrfToken
-                        },
-                        success: function(data) {
-                            response(data);
-                        },
-                        error: function(xhr, status, error) {
-                            console.error('Error:', status, error);
-                            $('#result').html('An error occurred while fetching data.');
-                        },
-                        complete: function() {
-                            searchIcon.hide();
-                        }
-                    });                           
-                },
-                minLength: 2,
-                select: function(event, ui) {
-                    customer_id.val(ui.item.id);
-                    crm_button.show().text(ui.item.text)
-                        .attr('href', `${base_url}maklerportal/?show=kunde&kunde=${ui.item.id}`);
-                    $("#crm_user").hide();
-                    archive_btn.show();
-                    $('#contract-tag-dropdown, #division-tag-dropdown').show();
-                    mangeContractSelects();
-                }
-            }).data("ui-autocomplete")._renderItem = function(ul, item) {
-                return $("<li>").append(item.text).appendTo(ul);
-            };
+        const input = document.getElementById('crm_user');
+        const awesomeList = new Awesomplete(input, { });
+        let dataList = [];
+        input.addEventListener('input', function () {
+        searchIcon.show();
+        const inputValue = input.value;
+        fetch("/crm/ajax", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/x-www-form-urlencoded",
+                    },
+                    body: `search=${inputValue}&action=crm_users_search&_token=${csrfToken}`,
+                })
+            .then(response => response.json())
+            .then(data => {
+            dataList = data;
+            searchIcon.hide();
+            const suggestions = data.map(item => ({
+                id: item.id, // Assuming "id" is the property containing the ID
+                text: item.text // Assuming "text" is the property containing the text
+            }));
+            input.setAttribute('data-list', suggestions.map(item => item.text).join(','));
+            awesomeList.list = suggestions.map(item => item.text);
+            awesomeList.evaluate();
+            })
+            .catch(error => $('#result').html('An error occurred while fetching data.'));
+        });
+    
+        input.addEventListener('awesomplete-selectcomplete', function (e) {
+            const selectedValue = e.text.value;
+            const selectedObject = dataList.find(item => item.text === selectedValue);
+            console.log(dataList);
+            customer_id.val(selectedObject.id);
+            crm_button.show().text(selectedValue).
+            attr('href', `${base_url}maklerportal/?show=kunde&kunde=${selectedObject.id}`);
+            $('.form_user_crm').hide();
+            archive_btn.show();
+            $("#contract-tag-dropdown, #division-tag-dropdown").show();
+            mangeContractSelects();
         });
     });
 

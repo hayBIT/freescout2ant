@@ -36,7 +36,8 @@ ul.ui-menu.ui-front {
 span.loading-icon {
     position: absolute;
     right: 10px;
-    top: 5px;
+    top: 26px;
+    z-index: 2;
 }
 
 #contract_block{
@@ -72,4 +73,8 @@ span.loading-icon {
 
 .crm-user-panel .panel{
     border: 0;
+}
+
+.awesomplete{
+    width: 100%;
 }

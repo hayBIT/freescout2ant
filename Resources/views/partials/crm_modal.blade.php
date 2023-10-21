@@ -7,8 +7,8 @@
           </div>
           <div class="modal-body">
 <form id="crm_user_form">
-    <span>{{__('Search')}}</span>
-    <div class="form_user_crm">
+  <div class="form_user_crm">
+      <span>{{__('Search')}}</span>
         <span class="loading-icon" style="display: none;">
           <span class="glyphicon glyphicon-refresh glyphicon-spin" aria-hidden="true"></span>
       </span>
