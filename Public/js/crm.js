@@ -36,11 +36,12 @@ $(document).ready(function() {
     
         input.addEventListener('awesomplete-selectcomplete', function (e) {
             const selectedValue = e.text.value;
+            let ameise_base_url = $('#ameise_base_url').val();
             const selectedObject = dataList.find(item => item.text === selectedValue);
             $('#contract-tag-dropdown, #division-tag-dropdown').empty();
             customer_id.val(selectedObject.id);
             crm_button.show().text(selectedValue).
-            attr('href', `${base_url}maklerportal/?show=kunde&kunde=${selectedObject.id}`);
+            attr('href', `${ameise_base_url}maklerportal/?show=kunde&kunde=${selectedObject.id}`);
             archive_btn.show();
             $("#contract-tag-dropdown, #division-tag-dropdown").show();
             mangeContractSelects();
