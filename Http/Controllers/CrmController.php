@@ -48,10 +48,10 @@ class CrmController extends Controller
                         'last_name'  => $data['Person']['Nachname'],
                         'address'    => $data['Hauptwohnsitz']['Strasse'],
                         'zip'        => $data['Hauptwohnsitz']['Postleitzahl'],
-                        'city'       => $data['Hauptwohnsitz']['Postleitzahl'],
+                        'city'       => $data['Hauptwohnsitz']['Ort'],
                         'country'    => $data['Hauptwohnsitz']['Land'],
                         'emails'     => $emails,
-                        'phones'     => $phone
+                        'phones'     => $phone,
                     );
                 }
                 return response()->json($crmUsers);

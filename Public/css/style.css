@@ -75,6 +75,7 @@ span.loading-icon {
     border: 0;
 }
 
-.awesomplete{
-    width: 100%;
+.awesomplete,
+.form-group .select2{
+    width: 100% !important;
 }

@@ -37,19 +37,22 @@ $(document).ready(function() {
         input.addEventListener('awesomplete-selectcomplete', function (e) {
             const selectedValue = e.text.value;
             const selectedObject = dataList.find(item => item.text === selectedValue);
-            console.log(dataList);
+            $('#contract-tag-dropdown, #division-tag-dropdown').empty();
             customer_id.val(selectedObject.id);
             crm_button.show().text(selectedValue).
             attr('href', `${base_url}maklerportal/?show=kunde&kunde=${selectedObject.id}`);
-            $('.form_user_crm').hide();
             archive_btn.show();
             $("#contract-tag-dropdown, #division-tag-dropdown").show();
             mangeContractSelects();
         });
     });
 
+    $('#ameise-modal').on('hidden.bs.modal', function () {
+        location.reload();
+    });
+
     function handleSelectChange() {
-        let clientId = $('#customer_id').val() 
+        let clientId = $('#customer_id').val();
         const storedData = localStorage.getItem(`apiData_${clientId}`);
         const url = '/crm/ajax';
 
@@ -67,6 +70,7 @@ $(document).ready(function() {
                     console.log(data);
                     const storageKey = `apiData_${clientId}`;
                     localStorage.setItem(storageKey, JSON.stringify(data));
+                    $('#contract-tag-dropdown, #division-tag-dropdown').empty();
                     populateMultiSelectOptions(data);
                 },
                 error: function(xhr, status, error) {

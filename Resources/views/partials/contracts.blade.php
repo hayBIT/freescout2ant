@@ -1,4 +1,4 @@
-@if($archives)
+@if($archives->isNotEmpty())
 <div class="panel-group accordion accordion-empty">
     <div class="panel panel-default">
         <div class="panel-heading">
@@ -20,7 +20,6 @@
                                     @endphp
                                     <a style="font-size:14px;" target="_blank"
                                         href="{{ (config('ameisemodule.ameise_mode') == 'test' ? 'https://maklerinfo.inte.dionera.dev' : 'https://maklerinfo.biz') }}/maklerportal/?show=kunde&kunde={{ $user['id'] }}"><p>{{ $user['text'] }}</p></a>
-                                
                                 @php
                                     $contracts = json_decode($archive->contracts, true);
                                 @endphp
