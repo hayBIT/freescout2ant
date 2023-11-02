@@ -14,6 +14,6 @@
     @parent
     <link href="{{ asset(Module::getPublicPath(AMEISE_MODULE) . '/css/awesomplete.css') }}" rel="stylesheet"
         type="text/css">
-    <script src="{{ Module::getPublicPath(AMEISE_MODULE) . '/js/awesomplete.js' }}"></script>
-    <script src="{{ Module::getPublicPath(AMEISE_MODULE) . '/js/crm.js' }}"></script>
+    <script src="{{ Module::getPublicPath(AMEISE_MODULE) . '/js/awesomplete.js' }}"  {!! \Helper::cspNonceAttr() !!}></script>
+    <script src="{{ Module::getPublicPath(AMEISE_MODULE) . '/js/crm.js' }}"  {!! \Helper::cspNonceAttr() !!}></script>
 @endsection
