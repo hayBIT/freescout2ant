@@ -30,8 +30,9 @@ class CrmController extends Controller
         switch ($request->action) {
             case 'crm_users_search':
                 $response = $this->crmService->fetchUserByIdOrName($inputs['search']);
-                $crmUsers = $emails = $phone =  [];
+                $crmUsers = [];
                 foreach($response as $data) {
+                    $emails = $phone =  [];
                     $contactDetails = $this->crmService->fetchUserDetail($data['Id'],'kontaktdaten');
                     foreach ($contactDetails as $item) {
                         if ($item["Typ"] === "email") {
