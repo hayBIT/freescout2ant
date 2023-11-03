@@ -116,7 +116,6 @@ class CrmController extends Controller
                 $conversation['X-Dio-Datum'] = Carbon::parse($conversation->created_at)->setTimezone($userTimezone)->format('Y-m-d\TH:i:s');
                 $conversation_data['subject'] = $conversation->subject;
                 $conversation_data['body'] = $conversation->preview; // Set the PDF content as the body
-                $conversation_data['Content-Type'] = 'application/pdf; name="Lorem ipsum.pdf"';
                 $conversation_data['X-Dio-Zuordnungen'] =
                 [
                     ['Typ' => 'kunde', 'Id' => $crm_user_id],
@@ -124,16 +123,7 @@ class CrmController extends Controller
                     ...array_map(fn($division) => ['Typ' => 'sparte', 'Id' => $division['id']], $divisions),
                 ];
                 $response = $this->crmService->archiveConversation($conversation_data);
-                $allAttachments = [];
                 $allAttachments = $conversation->threads->pluck('attachments')->flatten();
-                // print_r($allAttachments);
-                // die;
-                // foreach ($conversation->threads as $thread) {
-                //     $attachments = $thread->attachments;
-                //     if (!$attachments->isEmpty()) {
-                //         $allAttachments = array_merge($allAttachments, $attachments->toArray());
-                //     }
-                // }
                 if ($allAttachments->isNotEmpty()) {
                     foreach ($allAttachments as $attachment) {
                         $attachmentData = [
@@ -143,6 +133,7 @@ class CrmController extends Controller
                             'body' => file_get_contents(storage_path('app/attachment/' . $attachment['file_dir'] . $attachment['file_name'])),
                             'Content-Type' => 'application/pdf; name="Lorem ipsum.pdf"',
                             'X-Dio-Zuordnungen' => [['Typ' => 'kunde', 'Id' => $crm_user_id]],
+                            'X-Dio-Datum' => Carbon::parse($conversation->created_at)->setTimezone($userTimezone)->format('Y-m-d\TH:i:s')
                         ];
                         $this->crmService->archiveConversation($attachmentData);
                     }

@@ -8,6 +8,7 @@ use Eventy;
 use View;
 use Config;
 use Modules\AmeiseModule\Entities\CrmArchive;
+use Carbon\Carbon;
 
 define('AMEISE_MODULE', 'ameisemodule');
 
@@ -80,7 +81,12 @@ class AmeiseModuleServiceProvider extends ServiceProvider
                         'subject' => $conversation->subject,
                         'body' => $conversation->preview,
                     ];
-
+                    if (!empty($conversation->customer_email)) {
+                        $conversation_data['x-dio-metadaten'][] = ['Value' => 'To', 'Text' => $conversation->customer_email];
+                    }
+                    if (!empty($conversation->mailbox_id)) {
+                        $conversation_data['x-dio-metadaten'][] = ['Value' => 'From', 'Text' => $conversation->mailbox->email];
+                    }
                     if (!empty($conversation->cc)) {
                         $conversation_data['x-dio-metadaten'][] = ['Value' => 'cc', 'Text' => implode(', ', json_decode($conversation->cc))];
                     }
@@ -90,7 +96,23 @@ class AmeiseModuleServiceProvider extends ServiceProvider
                     }
 
                     $crmService->archiveConversation($conversation_data);
-
+                    $allAttachments = $conversation->threads->pluck('attachments')->flatten();
+                    $userTimezone = auth()->user()->timezone;
+                    if ($allAttachments->isNotEmpty()) {
+                        foreach ($allAttachments as $attachment) {
+                            $attachmentData = [
+                                'type' => 'dokument',
+                                'x-dio-metadaten' => [],
+                                'subject' => $conversation->subject,
+                                'body' => file_get_contents(storage_path('app/attachment/' . $attachment['file_dir'] . $attachment['file_name'])),
+                                'Content-Type' => 'application/pdf; name="Lorem ipsum.pdf"',
+                                'X-Dio-Zuordnungen' => [['Typ' => 'kunde', 'Id' => $crm_user_id]],
+                                'X-Dio-Datum' => Carbon::parse($conversation->created_at)->setTimezone($userTimezone)->format('Y-m-d\TH:i:s')
+                            ];
+                            $crmService->archiveConversation($attachmentData);
+                        }
+                    }
+                    
                     $crm_archive = CrmArchive::firstOrNew(['conversation_id' => $conversation->id, 'crm_user_id' => $crm_user_id]);
                     $crm_archive->crm_user = json_encode(['id' => $crm_user_id, 'text' => $response[0]['Text']]);
                     $crm_archive->contracts = null;
