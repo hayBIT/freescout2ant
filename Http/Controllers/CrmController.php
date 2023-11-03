@@ -3,6 +3,7 @@
 namespace Modules\AmeiseModule\Http\Controllers;
 
 use App\Conversation;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
@@ -33,18 +34,18 @@ class CrmController extends Controller
                 $crmUsers = [];
                 foreach($response as $data) {
                     $emails = $phone =  [];
-                    $contactDetails = $this->crmService->fetchUserDetail($data['Id'],'kontaktdaten');
+                    $contactDetails = $this->crmService->fetchUserDetail($data['Id'], 'kontaktdaten');
                     foreach ($contactDetails as $item) {
                         if ($item["Typ"] === "email") {
                             $emails[] = $item["Value"];
-                        } elseif($item['Typ']== 'telefon'){
+                        } elseif($item['Typ'] == 'telefon') {
                             $phone [] = $item['Value'];
                         }
                     }
                     $crmUsers[] = array(
                         'id' => $data['Id'],
                         'text' => $data['Text'],
-                        'id_name' => $data['Person']['Vorname']." ".$data['Person']['Nachname']."(".$data['Id'].")",
+                        'id_name' => $data['Person']['Vorname'] . " " . $data['Person']['Nachname'] . "(" . $data['Id'] . ")",
                         'first_name' => $data['Person']['Vorname'],
                         'last_name'  => $data['Person']['Nachname'],
                         'address'    => $data['Hauptwohnsitz']['Strasse'],
@@ -79,9 +80,8 @@ class CrmController extends Controller
                 });
                 return response()->json(['contracts' => $groupedData, 'divisions' => $divisionResponse]);
                 break;
-           
             case 'crm_conversation_archive':
-                $conversation = Conversation::find($inputs['conversation_id']);
+                $conversation = Conversation::with('threads.all_attachments')->find($inputs['conversation_id']);
                 $crm_user_id = $inputs['customer_id'];
                 $crm_user = json_decode($inputs['crm_user_data'], true);
                 $contracts = json_decode($inputs['contracts'], true);
@@ -93,7 +93,12 @@ class CrmController extends Controller
                         'type' => 'email',
                         'x-dio-metadaten' => [],
                     ];
-                    
+                    if (!empty($conversation->customer_email)) {
+                        $conversation_data['x-dio-metadaten'][] = ['Value' => 'To', 'Text' => $conversation->customer_email];
+                    }
+                    if (!empty($conversation->mailbox_id)) {
+                        $conversation_data['x-dio-metadaten'][] = ['Value' => 'From', 'Text' => $conversation->mailbox->email];
+                    }
                     if (!empty($conversation->cc)) {
                         $conversation_data['x-dio-metadaten'][] = ['Value' => 'cc', 'Text' => implode(', ', json_decode($conversation->cc))];
                     }
@@ -107,21 +112,47 @@ class CrmController extends Controller
                         'x-dio-metadaten' => [],
                     ];
                 }
-
+                $userTimezone = auth()->user()->timezone;
+                $conversation['X-Dio-Datum'] = Carbon::parse($conversation->created_at)->setTimezone($userTimezone)->format('Y-m-d\TH:i:s');
                 $conversation_data['subject'] = $conversation->subject;
-                $conversation_data['body'] = $conversation->preview;
-                $conversation_data['X-Dio-Zuordnungen']=
+                $conversation_data['body'] = $conversation->preview; // Set the PDF content as the body
+                $conversation_data['Content-Type'] = 'application/pdf; name="Lorem ipsum.pdf"';
+                $conversation_data['X-Dio-Zuordnungen'] =
                 [
                     ['Typ' => 'kunde', 'Id' => $crm_user_id],
-                    ...array_map(fn ($contract) => ['Typ' => 'vertrag', 'Id' => $contract['id']], $contracts),
-                    ...array_map(fn ($division) => ['Typ' => 'sparte', 'Id' => $division['id']], $divisions),
+                    ...array_map(fn($contract) => ['Typ' => 'vertrag', 'Id' => $contract['id']], $contracts),
+                    ...array_map(fn($division) => ['Typ' => 'sparte', 'Id' => $division['id']], $divisions),
                 ];
                 $response = $this->crmService->archiveConversation($conversation_data);
+                $allAttachments = [];
+                $allAttachments = $conversation->threads->pluck('attachments')->flatten();
+                // print_r($allAttachments);
+                // die;
+                // foreach ($conversation->threads as $thread) {
+                //     $attachments = $thread->attachments;
+                //     if (!$attachments->isEmpty()) {
+                //         $allAttachments = array_merge($allAttachments, $attachments->toArray());
+                //     }
+                // }
+                if ($allAttachments->isNotEmpty()) {
+                    foreach ($allAttachments as $attachment) {
+                        $attachmentData = [
+                            'type' => 'dokument',
+                            'x-dio-metadaten' => [],
+                            'subject' => $conversation->subject,
+                            'body' => file_get_contents(storage_path('app/attachment/' . $attachment['file_dir'] . $attachment['file_name'])),
+                            'Content-Type' => 'application/pdf; name="Lorem ipsum.pdf"',
+                            'X-Dio-Zuordnungen' => [['Typ' => 'kunde', 'Id' => $crm_user_id]],
+                        ];
+                        $this->crmService->archiveConversation($attachmentData);
+                    }
+                }
                 $crm_archive = CrmArchive::where(
-                    ['conversation_id'=> $inputs['conversation_id'],
-                    'crm_user_id'=> $inputs['customer_id']
-                    ])->first();
-                
+                    ['conversation_id' => $inputs['conversation_id'],
+                    'crm_user_id' => $inputs['customer_id']
+                    ]
+                )->first();
+
                 if(!$crm_archive) {
                     $crm_archive = new CrmArchive();
                     $crm_archive->crm_user_id = $inputs['customer_id'];
@@ -139,17 +170,18 @@ class CrmController extends Controller
 
     }
 
-    public function getContracts($id) {
+    public function getContracts($id)
+    {
         if(!Conversation::find($id)) {
             return '';
         }
-        $archives = CrmArchive::where('conversation_id', $id)->orderBy('id','DESC')->get();
-        if(!$archives){
+        $archives = CrmArchive::where('conversation_id', $id)->orderBy('id', 'DESC')->get();
+        if(!$archives) {
             return false;
         }
         return view('ameise::partials.contracts', [
             'archives' => $archives,
         ])->render();
-        
+
     }
 }
