@@ -304,7 +304,7 @@ class CrmService
             'X-Dio-Betreff' =>  $data['subject'],
             'x-dio-metadaten' =>  json_encode($data['x-dio-metadaten']),
             'X-Dio-Typ' => $data['type'],
-            'Content-Type' => 'text/plain',
+            'Content-Type' => $data['Content-Type'] ??  'text/plain; charset="utf-8"',
             'X-Dio-Zuordnungen' =>  json_encode($data['X-Dio-Zuordnungen']),
             'Authorization' => 'Bearer ' . $this->access_token,
         ];
