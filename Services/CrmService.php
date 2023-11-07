@@ -414,7 +414,7 @@ class CrmService
             'type' => ($conversation->type == 1) ? 'email' : 'telefon',
             'x-dio-metadaten' => $x_dio_metadaten,
             'subject' => $conversation->subject,
-            'body' => $conversation->preview,
+            'body' => $thread->body,
             'X-Dio-Datum' => Carbon::parse($thread->created_at)->setTimezone($userTimezone)->format('Y-m-d\TH:i:s'),
             'X-Dio-Zuordnungen' => array_merge(
                 [['Typ' => 'kunde', 'Id' => $crm_user_id]],
