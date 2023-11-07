@@ -87,55 +87,50 @@ class CrmController extends Controller
                 $contracts = json_decode($inputs['contracts'], true);
                 $divisions = json_decode($inputs['divisions_data'], true);
                 $conversation_data = [];
-                $crm_user_id = $crm_user['id'];
-                if ($conversation && $conversation->type == 1) {
-                    $conversation_data = [
-                        'type' => 'email',
-                        'x-dio-metadaten' => [],
-                    ];
-                    if (!empty($conversation->customer_email)) {
-                        $conversation_data['x-dio-metadaten'][] = ['Value' => 'To', 'Text' => $conversation->customer_email];
-                    }
-                    if (!empty($conversation->mailbox_id)) {
-                        $conversation_data['x-dio-metadaten'][] = ['Value' => 'From', 'Text' => $conversation->mailbox->email];
-                    }
-                    if (!empty($conversation->cc)) {
-                        $conversation_data['x-dio-metadaten'][] = ['Value' => 'cc', 'Text' => implode(', ', json_decode($conversation->cc))];
-                    }
 
-                    if (!empty($conversation->bcc)) {
-                        $conversation_data['x-dio-metadaten'][] = ['Value' => 'bcc', 'Text' => implode(', ', json_decode($conversation->bcc))];
-                    }
-                } elseif($conversation && $conversation->type == 2) {
+                if ($conversation) {
                     $conversation_data = [
-                        'type' => 'telefon',
+                        'type' => ($conversation->type == 1) ? 'email' : 'telefon',
                         'x-dio-metadaten' => [],
+                        'subject' => $conversation->subject,
+                        'body' => $conversation->preview,
+                        'X-Dio-Zuordnungen' => [
+                            ['Typ' => 'kunde', 'Id' => $crm_user_id],
+                            ...array_map(fn($contract) => ['Typ' => 'vertrag', 'Id' => $contract['id']], $contracts),
+                            ...array_map(fn($division) => ['Typ' => 'sparte', 'Id' => $division['id']], $divisions),
+                        ],
                     ];
-                }
-                $userTimezone = auth()->user()->timezone;
-                $conversation['X-Dio-Datum'] = Carbon::parse($conversation->created_at)->setTimezone($userTimezone)->format('Y-m-d\TH:i:s');
-                $conversation_data['subject'] = $conversation->subject;
-                $conversation_data['body'] = $conversation->preview; // Set the PDF content as the body
-                $conversation_data['X-Dio-Zuordnungen'] =
-                [
-                    ['Typ' => 'kunde', 'Id' => $crm_user_id],
-                    ...array_map(fn($contract) => ['Typ' => 'vertrag', 'Id' => $contract['id']], $contracts),
-                    ...array_map(fn($division) => ['Typ' => 'sparte', 'Id' => $division['id']], $divisions),
-                ];
-                $response = $this->crmService->archiveConversation($conversation_data);
-                $allAttachments = $conversation->threads->pluck('attachments')->flatten();
-                if ($allAttachments->isNotEmpty()) {
-                    foreach ($allAttachments as $attachment) {
-                        $attachmentData = [
-                            'type' => 'dokument',
-                            'x-dio-metadaten' => [],
-                            'subject' => $conversation->subject,
-                            'body' => file_get_contents(storage_path('app/attachment/' . $attachment['file_dir'] . $attachment['file_name'])),
-                            'Content-Type' => 'application/pdf; name="Lorem ipsum.pdf"',
-                            'X-Dio-Zuordnungen' => [['Typ' => 'kunde', 'Id' => $crm_user_id]],
-                            'X-Dio-Datum' => Carbon::parse($conversation->created_at)->setTimezone($userTimezone)->format('Y-m-d\TH:i:s')
-                        ];
-                        $this->crmService->archiveConversation($attachmentData);
+
+                    if ($conversation->type == 1) {
+                        $conversation_data['x-dio-metadaten'][] = ['Value' => 'To', 'Text' => $conversation->customer_email];
+                        $conversation_data['x-dio-metadaten'][] = ['Value' => 'From', 'Text' => $conversation->mailbox->email];
+                        if (!empty($conversation->cc)) {
+                            $conversation_data['x-dio-metadaten'][] = ['Value' => 'cc', 'Text' => implode(', ', json_decode($conversation->cc))];
+                        }
+                        if (!empty($conversation->bcc)) {
+                            $conversation_data['x-dio-metadaten'][] = ['Value' => 'bcc', 'Text' => implode(', ', json_decode($conversation->bcc))];
+                        }
+                    }
+                    
+                    $userTimezone = auth()->user()->timezone;
+                    $conversation_data['X-Dio-Datum'] = Carbon::parse($conversation->created_at)->setTimezone($userTimezone)->format('Y-m-d\TH:i:s');
+
+                    $response = $this->crmService->archiveConversation($conversation_data);
+
+                    $allAttachments = $conversation->threads->pluck('attachments')->flatten();
+                    if ($allAttachments->isNotEmpty()) {
+                        foreach ($allAttachments as $attachment) {
+                            $attachmentData = [
+                                'type' => 'dokument',
+                                'x-dio-metadaten' => $conversation_data['x-dio-metadaten'],
+                                'subject' => $conversation->subject,
+                                'body' => file_get_contents(storage_path('app/attachment/' . $attachment['file_dir'] . $attachment['file_name'])),
+                                'Content-Type' => 'application/pdf; name="freescout.pdf"',
+                                'X-Dio-Zuordnungen' => $conversation_data['X-Dio-Zuordnungen'],
+                                'X-Dio-Datum' => $conversation_data['X-Dio-Datum'],
+                            ];
+                            $this->crmService->archiveConversation($attachmentData);
+                        }
                     }
                 }
                 $crm_archive = CrmArchive::where(
@@ -153,7 +148,6 @@ class CrmController extends Controller
                 $crm_archive->contracts = $inputs['contracts'];
                 $crm_archive->divisions = $inputs['divisions_data'];
                 $crm_archive->save();
-
                 return response()->json(['status' => true]);
                 break;
 

@@ -2,6 +2,7 @@ $(document).ready(function() {
   const csrfToken = $('meta[name="csrf-token"]').attr('content');
  // Initialize a single Select2 instance for email address selection
 function initializeSelect2(context) {
+
     $(context).select2({
         tokenSeparators: [',', ' '],
         createTag: function(params) {
@@ -22,15 +23,22 @@ function initializeSelect2(context) {
                     _token: csrfToken
                 };
             },
-            processResults: function(data) {
+            processResults: function(data,params) {
                 if (data.length === 0) {
-                    // Display "Searching..." when no results are found
-                    return {
-                        results: [],
-                        pagination: {
-                            more: false
-                        }
-                    };
+                    var inputValue = params.term;
+                    let emailRegex = /^[A-Za-z0-9._%-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,4}$/;
+                    let isEmailValid = emailRegex.test(inputValue);
+                    let existingOptions = $(context).find('option');
+                    if (isEmailValid && !existingOptions.is('[value="' + inputValue + '"]')) {
+                        data.push({
+                            id: inputValue,
+                            text: inputValue
+                        });
+                        return {
+                            results: data
+                        };
+                    }
+                    
                 } else {
                     return {
                         results: data.map(function(item) {
@@ -53,8 +61,9 @@ function initializeSelect2(context) {
         },
         minimumInputLength: 2,
         placeholder: 'Searching...',
-        allowClear: true,
+        allowClear: true
     });
+   
 }
 
 

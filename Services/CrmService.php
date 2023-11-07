@@ -6,6 +6,8 @@ use Illuminate\Support\Facades\Request;
 use Illuminate\Support\Facades\Session;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\ClientException as Exception;
+use Carbon\Carbon;
+use Illuminate\Support\Facades\Log; // Import the Log facade
 
 class CrmService
 {
@@ -42,21 +44,29 @@ class CrmService
 
     public function getAccessToken()
     {
-        if (!file_exists(storage_path($this->file))) { //First time use = create the file
-            $this->createTokenFile();
+        try {
+            if (!file_exists(storage_path($this->file))) {
+                Log::info('Token file does not exist. Creating a new file.');
+                $this->createTokenFile();
+            }
+            $tokens = json_decode(file_get_contents(storage_path($this->file)));
+            $this->access_token = $tokens->access_token;
+            if (!empty($tokens->ma)) {
+                $this->ma = $tokens->ma;
+            } else {
+                Log::info('User info missing. Calling userInfo to retrieve it.');
+                $this->userInfo();
+            }
+            if ($this->dateTimePassed($tokens->expires_in)) {
+                $this->refresh_token = $tokens->refresh_token;
+                Log::info('Access token has expired. Creating a new token file.');
+                $this->createTokenFile();
+            }
+            Log::info('Access token retrieved successfully: ' . $this->access_token);
+            return $this->access_token;
+        } catch (\Exception $e) {
+            Log::error('Error in getAccessToken: ' . $e->getMessage());
         }
-        $tokens = json_decode(file_get_contents(storage_path($this->file)));
-        $this->access_token = $tokens->access_token;
-        if (!empty($tokens->ma)) {
-            $this->ma = $tokens->ma;
-        } else {
-            $this->userInfo();
-        }
-        if ($this->dateTimePassed($tokens->expires_in)) {
-            $this->refresh_token = $tokens->refresh_token;
-            $this->createTokenFile();
-        }
-        return $this->access_token;
     }
 
     public function dateTimePassed(string $dt_to_check): bool
@@ -93,12 +103,18 @@ class CrmService
                     'refresh_token' => $this->refresh_token
                 ];
             }
+            
+            // Log before sending the POST request
+            Log::info('Sending a token request to ' . $this->url . '/oauth2/token');
 
             // Send the POST request
             $response = $client->post($this->url . '/oauth2/token', [
                 'headers' => $headers,
                 'form_params' => $requestData,
             ]);
+
+            // Log after sending the POST request
+            Log::info('Token request sent with status code: ' . $response->getStatusCode());
 
             // Check if the request was successful
             if ($response->getStatusCode() === 200) {
@@ -108,15 +124,20 @@ class CrmService
                 $fp = fopen($filePath, 'w');
                 fwrite($fp, json_encode($responseData));
                 fclose($fp);
+                Log::info('Token file created successfully');
                 $this->userInfo();
             } else {
                 unlink($filePath);
-                json_decode($response->getBody(), true);
+                Log::error('Token request failed with status code: ' . $response->getStatusCode());
+                $errorResponse = json_decode($response->getBody(), true);
+                Log::error('Error response: ' . json_encode($errorResponse));
             }
         } catch (Exception $e) {
             // Handle other exceptions
             echo "Exception:\n";
             echo $e->getMessage();
+            Log::error('Exception in createTokenFile: ' . $e->getMessage());
+
         }
     }
 
@@ -138,6 +159,8 @@ class CrmService
     {
         try {
             $tokens = json_decode(file_get_contents(storage_path($this->file)));
+            // Log before sending the request
+            Log::info('Sending a userinfo request with access token: ' . $this->access_token);
             $client = new Client();
             $response = $client->get($this->url . '/userinfo', [
                 'headers' => [
@@ -145,6 +168,8 @@ class CrmService
                     'Content-Type' => 'application/json',
                 ]
             ]);
+            // Log after sending the request
+            Log::info('Userinfo request response data: ' . $response->getStatusCode());
             if ($response->getStatusCode() === 200) {
                 $responseData = json_decode($response->getBody(), true);
                 $tokens->ma = $responseData['sub'];
@@ -155,7 +180,11 @@ class CrmService
                 $this->disconnectAmeise();
             } else {
                 $errorResponse = json_decode($response->getBody(), true);
+                // Log the error response
+                Log::error('Userinfo request failed with status code: ' . $response->getStatusCode());
+                Log::error('Error response: ' . json_encode($errorResponse));
             }
+            Log::info('Userinfo request completed.');
             return $responseData;
         } catch (Exception $e) {
             if ($e->getCode() === 401) {
@@ -170,18 +199,25 @@ class CrmService
             $this->getAccessToken();
             // Make an API request using the access token
             $client = new Client();
+            // Log before sending the request
+            Log::info('Sending a user search request by id and name with access token: ' . $this->access_token);
             $response = $client->get($this->base_url . $this->ma . '/kunden/_search?q=' . $data, [
                 'headers' => [
                     'Authorization' => 'Bearer ' . $this->access_token,
                 ],
             ]);
+            // Log after sending the request
+            Log::info('User search request by id and name response status is: ' . $response->getStatusCode());
             if ($response->getStatusCode() === 200) {
                 $responseData = json_decode($response->getBody(), true);
             } elseif ($response->getStatusCode() === 401) {
                 $this->disconnectAmeise();
             } else {
                 $errorResponse = json_decode($response->getBody(), true);
+                Log::error('User search request failed with status code: ' . $response->getStatusCode());
+                Log::error('Error response: ' . json_encode($errorResponse));
             }
+            Log::info('User search request by id and name has been completed.');
             return $responseData;
         } catch (Exception $e) {
             if ($e->getCode() === 401) {
@@ -196,18 +232,23 @@ class CrmService
             $this->getAccessToken();
             // Make an API request using the access token
             $client = new Client();
-            $response = $client->get($this->base_url . $this->ma . '/kunden/' . $id.'/'.$endPoints, [
+            Log::info('user end points request with access token: ' . $this->access_token);
+            $response = $client->get($this->base_url . $this->ma . '/kunden/' . $id . '/' . $endPoints, [
                 'headers' => [
                     'Authorization' => 'Bearer ' . $this->access_token,
                 ],
             ]);
+            Log::info('User end points request response status: ' . $response->getStatusCode());
             if ($response->getStatusCode() === 200) {
                 $responseData = json_decode($response->getBody(), true);
             } elseif ($response->getStatusCode() === 401) {
                 $this->disconnectAmeise();
             } else {
                 $errorResponse = json_decode($response->getBody(), true);
+                Log::error('User search request failed with status code: ' . $response->getStatusCode());
+                Log::error('Error response: ' . json_encode($errorResponse));
             }
+            Log::info('use end points request has been completed.');
             return $responseData;
         } catch (Exception $e) {
             if ($e->getCode() === 401) {
@@ -222,6 +263,7 @@ class CrmService
             $this->getAccessToken();
             // Make an API request using the access token
             $client = new Client();
+            Log::info('fetch user by email request with access token: ' . $this->access_token);
             $body = json_encode([
                 'mail' => $email,
             ]);
@@ -231,13 +273,17 @@ class CrmService
                 ],
                 'body' => $body
             ]);
+            Log::info('fetch user by email request response status: ' . $response->getStatusCode());
             if ($response->getStatusCode() === 200) {
                 $responseData = json_decode($response->getBody(), true);
             } elseif ($response->getStatusCode() === 401) {
                 $this->disconnectAmeise();
             } else {
                 $errorResponse = json_decode($response->getBody(), true);
+                Log::error('fetch user by email request failed with status code: ' . $response->getStatusCode());
+                Log::error('Error response: ' . json_encode($errorResponse));
             }
+            Log::info('fetch user by email has been completed.');
             return $responseData;
         } catch (Exception $e) {
             if ($e->getCode() === 401) {
@@ -251,18 +297,23 @@ class CrmService
         try {
             $this->getAccessToken();
             $client = new Client();
+            Log::info('get contract request with access token: ' . $this->access_token);
             $response = $client->get($this->base_url . $this->ma . '/kunden/' . $customerId . '/vertraege', [
                 'headers' => [
                     'Authorization' => 'Bearer ' . $this->access_token,
                 ],
             ]);
+            Log::info('get contracts request response status is: ' . $response->getStatusCode());
             if ($response->getStatusCode() === 200) {
                 $responseData = json_decode($response->getBody(), true);
             } elseif ($response->getStatusCode() === 401) {
                 $this->disconnectAmeise();
             } else {
                 $errorResponse = json_decode($response->getBody(), true);
+                Log::error('get contract request failed with status code: ' . $response->getStatusCode());
+                Log::error('Error response: ' . json_encode($errorResponse));
             }
+            Log::info('get contract request has been completed.');
             return $responseData;
         } catch (Exception $e) {
             if ($e->getCode() === 401) {
@@ -276,18 +327,23 @@ class CrmService
         try {
             $this->getAccessToken();
             $client = new Client();
+            Log::info('get contract end points request with access token: ' . $this->access_token);
             $response = $client->get($this->base_url . $end_points, [
                 'headers' => [
                     'Authorization' => 'Bearer ' . $this->access_token,
                 ],
             ]);
+            Log::info('get contracts end points request response status is: ' . $response->getStatusCode());
             if ($response->getStatusCode() === 200) {
                 $responseData = json_decode($response->getBody(), true);
             } elseif ($response->getStatusCode() === 401) {
                 $this->disconnectAmeise();
             } else {
                 $errorResponse = json_decode($response->getBody(), true);
+                Log::error('get contract request failed with status code: ' . $response->getStatusCode());
+                Log::error('Error response: ' . json_encode($errorResponse));
             }
+            Log::info('get contract end points  request has been completed.');
             return $responseData;
         } catch (Exception $e) {
             if ($e->getCode() === 401) {
@@ -300,12 +356,14 @@ class CrmService
     {
         $this->getAccessToken();
         $client = new Client();
+        Log::info('archive conversation request called with access token: ' . $this->access_token);
         $headers = [
             'X-Dio-Betreff' =>  $data['subject'],
             'x-dio-metadaten' =>  json_encode($data['x-dio-metadaten']),
             'X-Dio-Typ' => $data['type'],
             'Content-Type' => $data['Content-Type'] ??  'text/plain; charset="utf-8"',
             'X-Dio-Zuordnungen' =>  json_encode($data['X-Dio-Zuordnungen']),
+            'X-Dio-Datum' =>  $data['X-Dio-Datum'],
             'Authorization' => 'Bearer ' . $this->access_token,
         ];
         try {
@@ -313,6 +371,7 @@ class CrmService
                 'headers' => $headers,
                 'body' => $data['body'],
             ]);
+            Log::info('archive conversation request response status is: ' . $response->getStatusCode());
             // Process the response data here
             if ($response->getStatusCode() === 200) {
                 $responseData = $response->getBody();
@@ -320,6 +379,8 @@ class CrmService
                 $this->disconnectAmeise();
             } else {
                 $errorResponse = json_decode($response->getBody(), true);
+                Log::error('archive conversation request failed with status code: ' . $response->getStatusCode());
+                Log::error('Error response: ' . json_encode($errorResponse));
             }
             return $responseData;
         } catch (Exception $e) {
@@ -327,11 +388,59 @@ class CrmService
                 $this->disconnectAmeise();
             }
         }
-        return $responseData;
     }
 
     public function getAuthURl()
     {
         return $this->url . '/oauth2/auth?response_type=code&client_id=' . $this->clientId . '&redirect_uri=' . $this->redirectUrl . '&scope=' . $this->scope . '&state=' . config('ameisemodule.ameise_state');
+    }
+
+    public function createConversationData($conversation, $crm_user_id, $contracts, $divisions, $thread)
+    {
+        $userTimezone = auth()->user()->timezone;
+        $x_dio_metadaten = [];
+        $metaData = [
+            'To' =>  json_decode($thread->to),
+            'From' => $conversation->mailbox_id ? $conversation->mailbox->email : null,
+            'cc' =>  json_decode($thread->cc),
+            'bcc' =>   json_decode($thread->bcc),
+        ];
+        foreach ($metaData as $key => $value) {
+            $text = is_array($value) ? implode(', ', $value) : $value;
+            $x_dio_metadaten[] = ['Value' => $key, 'Text' => $text];
+        }
+
+        return [
+            'type' => ($conversation->type == 1) ? 'email' : 'telefon',
+            'x-dio-metadaten' => $x_dio_metadaten,
+            'subject' => $conversation->subject,
+            'body' => $conversation->preview,
+            'X-Dio-Datum' => Carbon::parse($thread->created_at)->setTimezone($userTimezone)->format('Y-m-d\TH:i:s'),
+            'X-Dio-Zuordnungen' => array_merge(
+                [['Typ' => 'kunde', 'Id' => $crm_user_id]],
+                !is_null($contracts) ? array_map(fn($contract) => ['Typ' => 'vertrag', 'Id' => $contract['id']], $contracts) : [],
+                !is_null($divisions) ? array_map(fn($division) => ['Typ' => 'sparte', 'Id' => $division['id']], $divisions) : []
+            ),
+        ];
+    }
+
+    public function archiveConversationWithAttachments($thread, $conversation_data, $crm_user_id)
+    {
+        $allAttachments = $thread->attachments;
+        $userTimezone = auth()->user()->timezone;
+        if ($allAttachments->count() > 0) {
+            foreach ($allAttachments as $attachment) {
+                $attachmentData = [
+                    'type' => 'dokument',
+                    'x-dio-metadaten' => $conversation_data['x-dio-metadaten'],
+                    'subject' => $conversation_data['subject'],
+                    'body' => file_get_contents(storage_path("app/attachment/{$attachment['file_dir']}{$attachment['file_name']}")),
+                    'Content-Type' => 'application/pdf; name="freescout.pdf"',
+                    'X-Dio-Zuordnungen' => [['Typ' => 'kunde', 'Id' => $crm_user_id]],
+                    'X-Dio-Datum' => Carbon::parse($thread->created_at)->setTimezone($userTimezone)->format('Y-m-d\TH:i:s')
+                ];
+                $this->archiveConversation($attachmentData);
+            }
+        }
     }
 }
