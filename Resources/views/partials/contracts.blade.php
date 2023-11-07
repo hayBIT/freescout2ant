@@ -21,7 +21,7 @@
                                     <a style="font-size:14px;" target="_blank"
                                         href="{{ (config('ameisemodule.ameise_mode') == 'test' ? 'https://maklerinfo.inte.dionera.dev' : 'https://maklerinfo.biz') }}/maklerportal/?show=kunde&kunde={{ $user['id'] }}"><p>{{ $user['text'] }}</p></a>
                                 @php
-                                    $contracts = json_decode($archive->contracts, true);
+                                    $contracts = !empty($archive->contracts) ? json_decode($archive->contracts, true) : "";
                                 @endphp
                                 @if ($contracts)
                                     @foreach ($contracts as $contract)
@@ -31,7 +31,7 @@
                                 @endif
 
                                 @php
-                                    $divisions = json_decode($archive->divisions, true);
+                                    $divisions = !empty($archive->divisions) ?  json_decode($archive->divisions, true) :"";
                                 @endphp
                                 @if ($divisions)
                                     @foreach ($divisions as $division)

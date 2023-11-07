@@ -71,8 +71,8 @@ class AmeiseModuleServiceProvider extends ServiceProvider
                 $crmArchives = CrmArchive::where('conversation_id', $conversation->id)->get();
                 if (count($crmArchives)>0) {
                     foreach ($crmArchives as $crmArchive) {
-                        $contracts = json_decode($crmArchive->contracts, true);
-                        $divisions = json_decode($crmArchive->divisions, true);
+                        $contracts = !empty($crmArchive->contracts) ? json_decode($crmArchive->contracts, true):[];
+                        $divisions = !empty($crmArchive->divisions) ? json_decode($crmArchive->divisions, true):[];
                          $conversation_data = $crmService->createConversationData($conversation, $crmArchive->crm_user_id, $contracts, $divisions, $thread);
                          $crmService->archiveConversation($conversation_data);
                         $crmService->archiveConversationWithAttachments($thread, $conversation_data,$crmArchive->crm_user_id);
