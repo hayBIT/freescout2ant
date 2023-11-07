@@ -155,8 +155,11 @@ const recipientSelectors = ['#to', '#cc', '#bcc'];
 
 recipientSelectors.forEach((selector) => {
     $(selector).on('select2:select', function (e) {
-        callHtml();
         const selectedUser = e.params.data;
+        if (!selectedUser || !selectedUser.record) {
+            return; 
+        }
+        callHtml();
         const recipientType = selector.substring(1); // Extract recipient type from selector
         displayUserDetails(selectedUser, recipientType);
     });
