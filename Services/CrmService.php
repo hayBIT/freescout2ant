@@ -46,7 +46,7 @@ class CrmService
     {
         try {
             if (!file_exists(storage_path($this->file))) {
-                Log::info('Token file does not exist. Creating a new file.');
+                \Helper::log('token_end_point','Token file does not exist. Creating a new file.');
                 $this->createTokenFile();
             }
             $tokens = json_decode(file_get_contents(storage_path($this->file)));
@@ -54,18 +54,20 @@ class CrmService
             if (!empty($tokens->ma)) {
                 $this->ma = $tokens->ma;
             } else {
-                Log::info('User info missing. Calling userInfo to retrieve it.');
+                \Helper::log('user_info','User info missing. Calling userInfo to retrieve it.');
+
                 $this->userInfo();
             }
             if ($this->dateTimePassed($tokens->expires_in)) {
                 $this->refresh_token = $tokens->refresh_token;
-                Log::info('Access token has expired. Creating a new token file.');
+                \Helper::log('token_end_point','Access token has expired. Creating a new token file.');
                 $this->createTokenFile();
             }
-            Log::info('Access token retrieved successfully: ' . $this->access_token);
+            \Helper::log('token_end_point','Access token retrieved successfully.' . $this->access_token);
             return $this->access_token;
         } catch (\Exception $e) {
-            Log::error('Error in getAccessToken: ' . $e->getMessage());
+            \Helper::logException($e,'token_end_point');
+
         }
     }
 
@@ -105,7 +107,8 @@ class CrmService
             }
             
             // Log before sending the POST request
-            Log::info('Sending a token request to ' . $this->url . '/oauth2/token');
+            \Helper::log('token_generate','Sending a token request to ' . $this->url . '/oauth2/token');
+
 
             // Send the POST request
             $response = $client->post($this->url . '/oauth2/token', [
@@ -114,7 +117,7 @@ class CrmService
             ]);
 
             // Log after sending the POST request
-            Log::info('Token request sent with status code: ' . $response->getStatusCode());
+            \Helper::log('token_generate','Token request sent with status code: ' . $response->getStatusCode());
 
             // Check if the request was successful
             if ($response->getStatusCode() === 200) {
@@ -124,20 +127,16 @@ class CrmService
                 $fp = fopen($filePath, 'w');
                 fwrite($fp, json_encode($responseData));
                 fclose($fp);
-                Log::info('Token file created successfully');
+                \Helper::log('token_generate','Token file created successfully.');
                 $this->userInfo();
             } else {
                 unlink($filePath);
-                Log::error('Token request failed with status code: ' . $response->getStatusCode());
+                \Helper::log('token_generate','Token request failed with status code: ' . $response->getStatusCode());
                 $errorResponse = json_decode($response->getBody(), true);
-                Log::error('Error response: ' . json_encode($errorResponse));
+                \Helper::log('token_generate','Error response:' . json_encode($errorResponse));
             }
         } catch (Exception $e) {
-            // Handle other exceptions
-            echo "Exception:\n";
-            echo $e->getMessage();
-            Log::error('Exception in createTokenFile: ' . $e->getMessage());
-
+            \Helper::logException($e,'token_generate');
         }
     }
 
@@ -160,7 +159,7 @@ class CrmService
         try {
             $tokens = json_decode(file_get_contents(storage_path($this->file)));
             // Log before sending the request
-            Log::info('Sending a userinfo request with access token: ' . $this->access_token);
+            \Helper::log('user_info','Sending a userinfo request with access token: ' . $this->access_token);
             $client = new Client();
             $response = $client->get($this->url . '/userinfo', [
                 'headers' => [
@@ -169,7 +168,7 @@ class CrmService
                 ]
             ]);
             // Log after sending the request
-            Log::info('Userinfo request response data: ' . $response->getStatusCode());
+            \Helper::log('user_info','Userinfo request response data: ' . $response->getStatusCode());
             if ($response->getStatusCode() === 200) {
                 $responseData = json_decode($response->getBody(), true);
                 $tokens->ma = $responseData['sub'];
@@ -181,12 +180,13 @@ class CrmService
             } else {
                 $errorResponse = json_decode($response->getBody(), true);
                 // Log the error response
-                Log::error('Userinfo request failed with status code: ' . $response->getStatusCode());
-                Log::error('Error response: ' . json_encode($errorResponse));
+                \Helper::log('user_info','User info request failed with status code: ' . $response->getStatusCode());
+                \Helper::log('user_info','Error response:' . json_encode($errorResponse));
             }
-            Log::info('Userinfo request completed.');
+            \Helper::log('user_info','User info request completed.');
             return $responseData;
         } catch (Exception $e) {
+            \Helper::logException($e,'user_info');
             if ($e->getCode() === 401) {
                 $this->disconnectAmeise();
             }
@@ -200,26 +200,27 @@ class CrmService
             // Make an API request using the access token
             $client = new Client();
             // Log before sending the request
-            Log::info('Sending a user search request by id and name with access token: ' . $this->access_token);
+            \Helper::log('fetch_user_id_name','Sending a user search request by id and name with access token: ' . $this->access_token);
             $response = $client->get($this->base_url . $this->ma . '/kunden/_search?q=' . $data, [
                 'headers' => [
                     'Authorization' => 'Bearer ' . $this->access_token,
                 ],
             ]);
             // Log after sending the request
-            Log::info('User search request by id and name response status is: ' . $response->getStatusCode());
+            \Helper::log('fetch_user_id_name','User search request by id and name response status is: ' . $response->getStatusCode());
             if ($response->getStatusCode() === 200) {
                 $responseData = json_decode($response->getBody(), true);
             } elseif ($response->getStatusCode() === 401) {
                 $this->disconnectAmeise();
             } else {
                 $errorResponse = json_decode($response->getBody(), true);
-                Log::error('User search request failed with status code: ' . $response->getStatusCode());
-                Log::error('Error response: ' . json_encode($errorResponse));
+                \Helper::log('fetch_user_id_name','User search request failed with status code: ' . $response->getStatusCode());
+                \Helper::log('fetch_user_id_name','Error response: ' . json_encode($errorResponse));
             }
-            Log::info('User search request by id and name has been completed.');
+            \Helper::log('fetch_user_id_name','User search request by id and name has been completed.');
             return $responseData;
         } catch (Exception $e) {
+            \Helper::logException($e,'fetch_user_id_name');
             if ($e->getCode() === 401) {
                 $this->disconnectAmeise();
             }
@@ -232,25 +233,26 @@ class CrmService
             $this->getAccessToken();
             // Make an API request using the access token
             $client = new Client();
-            Log::info('user end points request with access token: ' . $this->access_token);
+            \Helper::log('user_end_points','User end points request with access token: ' . $this->access_token);
             $response = $client->get($this->base_url . $this->ma . '/kunden/' . $id . '/' . $endPoints, [
                 'headers' => [
                     'Authorization' => 'Bearer ' . $this->access_token,
                 ],
             ]);
-            Log::info('User end points request response status: ' . $response->getStatusCode());
+            \Helper::log('user_end_points','User end points request response status: ' . $response->getStatusCode());
             if ($response->getStatusCode() === 200) {
                 $responseData = json_decode($response->getBody(), true);
             } elseif ($response->getStatusCode() === 401) {
                 $this->disconnectAmeise();
             } else {
                 $errorResponse = json_decode($response->getBody(), true);
-                Log::error('User search request failed with status code: ' . $response->getStatusCode());
-                Log::error('Error response: ' . json_encode($errorResponse));
+                \Helper::log('user_end_points','User end points request failed with status code: ' . $response->getStatusCode());
+                \Helper::log('user_end_points','Error response: ' . json_encode($errorResponse));
             }
-            Log::info('use end points request has been completed.');
+            \Helper::log('user_end_points','User end points request has been completed.');
             return $responseData;
         } catch (Exception $e) {
+            \Helper::logException($e,'user_end_points');
             if ($e->getCode() === 401) {
                 $this->disconnectAmeise();
             }
@@ -263,7 +265,7 @@ class CrmService
             $this->getAccessToken();
             // Make an API request using the access token
             $client = new Client();
-            Log::info('fetch user by email request with access token: ' . $this->access_token);
+            \Helper::log('fetch_user_email','Fetch user by email request with access token: ' . $this->access_token);
             $body = json_encode([
                 'mail' => $email,
             ]);
@@ -273,19 +275,20 @@ class CrmService
                 ],
                 'body' => $body
             ]);
-            Log::info('fetch user by email request response status: ' . $response->getStatusCode());
+            \Helper::log('fetch_user_email','fetch user by email request response status: ' . $response->getStatusCode());
             if ($response->getStatusCode() === 200) {
                 $responseData = json_decode($response->getBody(), true);
             } elseif ($response->getStatusCode() === 401) {
                 $this->disconnectAmeise();
             } else {
                 $errorResponse = json_decode($response->getBody(), true);
-                Log::error('fetch user by email request failed with status code: ' . $response->getStatusCode());
-                Log::error('Error response: ' . json_encode($errorResponse));
+                \Helper::log('fetch_user_email','Fetch user by email request failed with status code: ' . $response->getStatusCode());
+                \Helper::log('fetch_user_email','Error response: ' . json_encode($errorResponse));
             }
-            Log::info('fetch user by email has been completed.');
+            \Helper::log('fetch_user_email','fetch user by email has been completed.');
             return $responseData;
         } catch (Exception $e) {
+            \Helper::logException($e,'fetch_user_email');
             if ($e->getCode() === 401) {
                 $this->disconnectAmeise();
             }
@@ -297,25 +300,26 @@ class CrmService
         try {
             $this->getAccessToken();
             $client = new Client();
-            Log::info('get contract request with access token: ' . $this->access_token);
+            \Helper::log('get_contracts','get contract request with access token: ' . $this->access_token);
             $response = $client->get($this->base_url . $this->ma . '/kunden/' . $customerId . '/vertraege', [
                 'headers' => [
                     'Authorization' => 'Bearer ' . $this->access_token,
                 ],
             ]);
-            Log::info('get contracts request response status is: ' . $response->getStatusCode());
+            \Helper::log('get_contracts','get contracts request response status is: ' . $response->getStatusCode());
             if ($response->getStatusCode() === 200) {
                 $responseData = json_decode($response->getBody(), true);
             } elseif ($response->getStatusCode() === 401) {
                 $this->disconnectAmeise();
             } else {
                 $errorResponse = json_decode($response->getBody(), true);
-                Log::error('get contract request failed with status code: ' . $response->getStatusCode());
-                Log::error('Error response: ' . json_encode($errorResponse));
+                \Helper::log('get_contracts','get contract request failed with status code: ' . $response->getStatusCode());
+                \Helper::log('get_contracts','Error response: ' . json_encode($errorResponse));
             }
-            Log::info('get contract request has been completed.');
+            \Helper::log('get_contracts','Get contract request has been completed.');
             return $responseData;
         } catch (Exception $e) {
+            \Helper::logException($e,'get_contracts');
             if ($e->getCode() === 401) {
                 $this->disconnectAmeise();
             }
@@ -327,25 +331,27 @@ class CrmService
         try {
             $this->getAccessToken();
             $client = new Client();
-            Log::info('get contract end points request with access token: ' . $this->access_token);
+            \Helper::log('contracts_end_points','get contract end points request with access token: ' . $this->access_token);
             $response = $client->get($this->base_url . $end_points, [
                 'headers' => [
                     'Authorization' => 'Bearer ' . $this->access_token,
                 ],
             ]);
-            Log::info('get contracts end points request response status is: ' . $response->getStatusCode());
+            \Helper::log('contracts_end_points','get contracts end points request response status is: ' . $response->getStatusCode());
             if ($response->getStatusCode() === 200) {
                 $responseData = json_decode($response->getBody(), true);
             } elseif ($response->getStatusCode() === 401) {
                 $this->disconnectAmeise();
             } else {
                 $errorResponse = json_decode($response->getBody(), true);
-                Log::error('get contract request failed with status code: ' . $response->getStatusCode());
-                Log::error('Error response: ' . json_encode($errorResponse));
+                \Helper::log('contracts_end_points','get contract end points request failed with status code: ' . $response->getStatusCode());
+                \Helper::log('contracts_end_points','Error response: ' . json_encode($errorResponse));
             }
-            Log::info('get contract end points  request has been completed.');
+            \Helper::log('contracts_end_points','get contract end points  request has been completed.');
+
             return $responseData;
         } catch (Exception $e) {
+            \Helper::logException($e,'conversation_archive');
             if ($e->getCode() === 401) {
                 $this->disconnectAmeise();
             }
@@ -356,7 +362,7 @@ class CrmService
     {
         $this->getAccessToken();
         $client = new Client();
-        Log::info('archive conversation request called with access token: ' . $this->access_token);
+        \Helper::log('conversation_archive','archive conversation request called with access token: ' . $this->access_token);
         $headers = [
             'X-Dio-Betreff' =>  $data['subject'],
             'x-dio-metadaten' =>  json_encode($data['x-dio-metadaten']),
@@ -371,7 +377,7 @@ class CrmService
                 'headers' => $headers,
                 'body' => $data['body'],
             ]);
-            Log::info('archive conversation request response status is: ' . $response->getStatusCode());
+            \Helper::log('conversation_archive','archive conversation request response status is: ' . $response->getStatusCode());
             // Process the response data here
             if ($response->getStatusCode() === 200) {
                 $responseData = $response->getBody();
@@ -379,11 +385,12 @@ class CrmService
                 $this->disconnectAmeise();
             } else {
                 $errorResponse = json_decode($response->getBody(), true);
-                Log::error('archive conversation request failed with status code: ' . $response->getStatusCode());
-                Log::error('Error response: ' . json_encode($errorResponse));
+                \Helper::log('conversation_archive','archive conversation request failed with status code: ' . $response->getStatusCode());
+                \Helper::log('conversation_archive','Error response: ' . json_encode($errorResponse));
             }
             return $responseData;
         } catch (Exception $e) {
+            \Helper::logException($e,'conversation_archive');
             if ($e->getCode() === 401) {
                 $this->disconnectAmeise();
             }
@@ -415,6 +422,7 @@ class CrmService
             'x-dio-metadaten' => $x_dio_metadaten,
             'subject' => $conversation->subject,
             'body' => $thread->body,
+            'Content-Type' => 'text/html; charset=utf-8',
             'X-Dio-Datum' => Carbon::parse($thread->created_at)->setTimezone($userTimezone)->format('Y-m-d\TH:i:s'),
             'X-Dio-Zuordnungen' => array_merge(
                 [['Typ' => 'kunde', 'Id' => $crm_user_id]],

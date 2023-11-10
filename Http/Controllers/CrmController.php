@@ -94,6 +94,7 @@ class CrmController extends Controller
                         'x-dio-metadaten' => [],
                         'subject' => $conversation->subject,
                         'body' => $conversation->preview,
+                        'Content-Type' => 'text/html; charset=utf-8',
                         'X-Dio-Zuordnungen' => [
                             ['Typ' => 'kunde', 'Id' => $crm_user_id],
                             ...array_map(fn($contract) => ['Typ' => 'vertrag', 'Id' => $contract['id']], $contracts),
