@@ -9,6 +9,7 @@ use View;
 use Config;
 use Modules\AmeiseModule\Entities\CrmArchive;
 use Carbon\Carbon;
+
 define('AMEISE_MODULE', 'ameisemodule');
 
 class AmeiseModuleServiceProvider extends ServiceProvider
@@ -52,7 +53,7 @@ class AmeiseModuleServiceProvider extends ServiceProvider
         Eventy::addAction('conversation.action_buttons', function () {
             $crmService = new \Modules\AmeiseModule\Services\CrmService('', auth()->user()->id);
             $url = $crmService->getAuthURl();
-            echo View::make('ameise::partials/conversation_button',['url' => $url])->render();
+            echo View::make('ameise::partials/conversation_button', ['url' => $url])->render();
         }, 10, 2);
 
         Eventy::addAction('layout.body_bottom', function () {
@@ -69,21 +70,21 @@ class AmeiseModuleServiceProvider extends ServiceProvider
                 $crmService = new \Modules\AmeiseModule\Services\CrmService('', auth()->user()->id);
                 $conversation = \App\Conversation::find($thread->conversation_id);
                 $crmArchives = CrmArchive::where('conversation_id', $conversation->id)->get();
-                if (count($crmArchives)>0) {
+                if (count($crmArchives) > 0) {
                     foreach ($crmArchives as $crmArchive) {
-                        $contracts = !empty($crmArchive->contracts) ? json_decode($crmArchive->contracts, true):[];
-                        $divisions = !empty($crmArchive->divisions) ? json_decode($crmArchive->divisions, true):[];
-                         $conversation_data = $crmService->createConversationData($conversation, $crmArchive->crm_user_id, $contracts, $divisions, $thread);
-                         $crmService->archiveConversation($conversation_data);
-                        $crmService->archiveConversationWithAttachments($thread, $conversation_data,$crmArchive->crm_user_id);
+                        $contracts = !empty($crmArchive->contracts) ? json_decode($crmArchive->contracts, true) : [];
+                        $divisions = !empty($crmArchive->divisions) ? json_decode($crmArchive->divisions, true) : [];
+                        $conversation_data = $crmService->createConversationData($conversation, $crmArchive->crm_user_id, $contracts, $divisions, $thread);
+                        $crmService->archiveConversation($conversation_data);
+                        $crmService->archiveConversationWithAttachments($thread, $conversation_data, $crmArchive->crm_user_id);
                     }
                 } else {
                     $response = $crmService->fetchUserByEamil($conversation->customer_email);
                     if (count($response) == 1) {
                         $crm_user_id = $response[0]['Id'];
-                        $conversation_data  = $crmService->createConversationData($conversation, $crm_user_id,[],[],$thread);
+                        $conversation_data  = $crmService->createConversationData($conversation, $crm_user_id, [], [], $thread);
                         $crmService->archiveConversation($conversation_data);
-                        $crmService->archiveConversationWithAttachments($thread, $conversation_data,$crm_user_id);
+                        $crmService->archiveConversationWithAttachments($thread, $conversation_data, $crm_user_id);
                         $crm_archive = CrmArchive::firstOrNew(['conversation_id' => $conversation->id, 'crm_user_id' => $crm_user_id]);
                         $crm_archive->crm_user = json_encode(['id' => $crm_user_id, 'text' => $response[0]['Text']]);
                         $crm_archive->contracts = null;
@@ -92,67 +93,68 @@ class AmeiseModuleServiceProvider extends ServiceProvider
                     }
                 }
             }
-            
+
 
         });
         $this->registerSettings();
     }
 
-    private function registerSettings() {
-		// Add item to settings sections.
-		Eventy::addFilter( 'settings.sections', function ( $sections ) {
-			$sections['ameise'] = [ 'title' => __( 'Ameise' ), 'icon' => 'headphones', 'order' => 200 ];
+    private function registerSettings()
+    {
+        // Add item to settings sections.
+        Eventy::addFilter('settings.sections', function ($sections) {
+            $sections['ameise'] = [ 'title' => __('Ameise'), 'icon' => 'headphones', 'order' => 200 ];
 
-			return $sections;
-		}, 15 );
+            return $sections;
+        }, 15);
 
-		// Section settings
-		Eventy::addFilter( 'settings.section_settings', function ( $settings, $section ) {
-			if ( $section !== 'ameise' ) {
-				return $settings;
-			}
+        // Section settings
+        Eventy::addFilter('settings.section_settings', function ($settings, $section) {
+            if ($section !== 'ameise') {
+                return $settings;
+            }
 
-			$settings['ameise_client_secret'] = config( 'ameisemodule.ameise_client_secret' );
-            $settings['ameise_mode'] = config( 'ameisemodule.ameise_mode' );
-            $settings['ameise_client_id'] = config( 'ameisemodule.ameise_client_id' );
+            $settings['ameise_client_secret'] = config('ameisemodule.ameise_client_secret');
+            $settings['ameise_mode'] = config('ameisemodule.ameise_mode');
+            $settings['ameise_client_id'] = config('ameisemodule.ameise_client_id');
             $settings['ameise_redirect_uri'] = route('crm.auth');
-            
-			return $settings;
-		}, 20, 2 );
 
-		// Section parameters.
-		Eventy::addFilter( 'settings.section_params', function ( $params, $section ) {
-			if ( $section !== 'ameise' ) {
-				return $params;
-			}
+            return $settings;
+        }, 20, 2);
 
-			$params['settings'] = [
-				'ameise_client_secret' => [
-					'env' => 'AMEISE_CLIENT_SECRET',
-				],
+        // Section parameters.
+        Eventy::addFilter('settings.section_params', function ($params, $section) {
+            if ($section !== 'ameise') {
+                return $params;
+            }
+
+            $params['settings'] = [
+                'ameise_client_secret' => [
+                    'env' => 'AMEISE_CLIENT_SECRET',
+                ],
                 'ameise_mode' => [
-					'env' => 'AMEISE_MODE',
-				],
+                    'env' => 'AMEISE_MODE',
+                ],
                 'ameise_client_id' => [
-					'env' => 'AMEISE_CLIENT_ID',
-				],
+                    'env' => 'AMEISE_CLIENT_ID',
+                ],
                 'ameise_redirect_uri' => [
-					'env' => 'AMEISE_REDIRECT_URI',
-				],
-			];
+                    'env' => 'AMEISE_REDIRECT_URI',
+                ],
+            ];
 
-			return $params;
-		}, 20, 2 );
+            return $params;
+        }, 20, 2);
 
-		// Settings view name
-		Eventy::addFilter( 'settings.view', function ( $view, $section ) {
-			if ( $section !== 'ameise' ) {
-				return $view;
-			}
+        // Settings view name
+        Eventy::addFilter('settings.view', function ($view, $section) {
+            if ($section !== 'ameise') {
+                return $view;
+            }
 
-			return 'ameisemodule::settings';
-		}, 20, 2 );
-	}
+            return 'ameisemodule::settings';
+        }, 20, 2);
+    }
 
     /**
      * Register the service provider.
@@ -172,10 +174,10 @@ class AmeiseModuleServiceProvider extends ServiceProvider
     protected function registerConfig()
     {
         $this->publishes([
-            __DIR__.'/../Config/config.php' => config_path('ameisemodule.php'),
+            __DIR__ . '/../Config/config.php' => config_path('ameisemodule.php'),
         ], 'config');
         $this->mergeConfigFrom(
-            __DIR__.'/../Config/config.php',
+            __DIR__ . '/../Config/config.php',
             'ameisemodule'
         );
     }
@@ -189,7 +191,7 @@ class AmeiseModuleServiceProvider extends ServiceProvider
     {
         $viewPath = resource_path('views/modules/ameisemodule');
 
-        $sourcePath = __DIR__.'/../Resources/views';
+        $sourcePath = __DIR__ . '/../Resources/views';
 
         $this->publishes([
             $sourcePath => $viewPath
@@ -207,7 +209,7 @@ class AmeiseModuleServiceProvider extends ServiceProvider
      */
     public function registerTranslations()
     {
-        $this->loadJsonTranslationsFrom(__DIR__ .'/../Resources/lang');
+        $this->loadJsonTranslationsFrom(__DIR__ . '/../Resources/lang');
     }
 
     /**
@@ -216,7 +218,7 @@ class AmeiseModuleServiceProvider extends ServiceProvider
      */
     public function registerFactories()
     {
-        if (! app()->environment('production')) {
+        if (!app()->environment('production')) {
             app(Factory::class)->load(__DIR__ . '/../Database/factories');
         }
     }

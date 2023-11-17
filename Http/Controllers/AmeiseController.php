@@ -10,7 +10,7 @@ use Illuminate\Routing\Controller;
 use Modules\AmeiseModule\Services\CrmService;
 use Modules\AmeiseModule\Entities\CrmArchive;
 
-class CrmController extends Controller
+class AmeiseController extends Controller
 {
     protected $crmService;
     public function __construct()
@@ -31,6 +31,9 @@ class CrmController extends Controller
         switch ($request->action) {
             case 'crm_users_search':
                 $response = $this->crmService->fetchUserByIdOrName($inputs['search']);
+                if (isset($response['error']) && isset($response['url'])) {
+                    return response()->json(['error' => 'Redirect', 'url' => $response['url']]);
+                }
                 $crmUsers = [];
                 foreach($response as $data) {
                     $emails = $phone =  [];
@@ -61,6 +64,9 @@ class CrmController extends Controller
 
             case 'get_contract':
                 $response = $this->crmService->getContracts($request->input('client_id'));
+                if (isset($response['error']) && isset($response['url'])) {
+                    return response()->json(['error' => 'Redirect', 'url' => $response['url']]);
+                }
                 $divisionResponse = $this->crmService->getContactEndPoints('sparten');
                 $statusResponse = $this->crmService->getContactEndPoints('vertragsstatus');
                 $groupedData = collect($response)->groupBy('Status')->map(function ($group) use ($divisionResponse, $statusResponse) {
@@ -112,11 +118,14 @@ class CrmController extends Controller
                             $conversation_data['x-dio-metadaten'][] = ['Value' => 'bcc', 'Text' => implode(', ', json_decode($conversation->bcc))];
                         }
                     }
-                    
+
                     $userTimezone = auth()->user()->timezone;
                     $conversation_data['X-Dio-Datum'] = Carbon::parse($conversation->created_at)->setTimezone($userTimezone)->format('Y-m-d\TH:i:s');
 
                     $response = $this->crmService->archiveConversation($conversation_data);
+                    if (isset($response['error']) && isset($response['url'])) {
+                        return response()->json(['error' => 'Redirect', 'url' => $response['url']]);
+                    }
 
                     $allAttachments = $conversation->threads->pluck('attachments')->flatten();
                     if ($allAttachments->isNotEmpty()) {
@@ -130,7 +139,7 @@ class CrmController extends Controller
                                 'X-Dio-Zuordnungen' => $conversation_data['X-Dio-Zuordnungen'],
                                 'X-Dio-Datum' => $conversation_data['X-Dio-Datum'],
                             ];
-                            $this->crmService->archiveConversation($attachmentData);
+                            $response =$this->crmService->archiveConversation($attachmentData);
                         }
                     }
                 }

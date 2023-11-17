@@ -12,7 +12,7 @@ $(document).ready(function() {
         input.addEventListener('input', function () {
         searchIcon.show();
         const inputValue = input.value;
-        fetch("/crm/ajax", {
+        fetch("/ameise/ajax", {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/x-www-form-urlencoded",
@@ -21,15 +21,21 @@ $(document).ready(function() {
                 })
             .then(response => response.json())
             .then(data => {
-            dataList = data;
-            searchIcon.hide();
-            const suggestions = data.map(item => ({
-                id: item.id, // Assuming "id" is the property containing the ID
-                text: item.text // Assuming "text" is the property containing the text
-            }));
-            input.setAttribute('data-list', suggestions.map(item => item.text).join(','));
-            awesomeList.list = suggestions.map(item => item.text);
-            awesomeList.evaluate();
+                if (data.error === 'Redirect') {
+                    // Redirect in the current tab
+                    window.open(data.url, '_blank');
+
+                } else {
+                    dataList = data;
+                    searchIcon.hide();
+                    const suggestions = data.map(item => ({
+                        id: item.id, // Assuming "id" is the property containing the ID
+                        text: item.text // Assuming "text" is the property containing the text
+                    }));
+                    input.setAttribute('data-list', suggestions.map(item => item.text).join(','));
+                    awesomeList.list = suggestions.map(item => item.text);
+                    awesomeList.evaluate();
+                }
             })
             .catch(error => $('#result').html('An error occurred while fetching data.'));
         });
@@ -55,7 +61,7 @@ $(document).ready(function() {
     function handleSelectChange() {
         let clientId = $('#customer_id').val();
         const storedData = localStorage.getItem(`apiData_${clientId}`);
-        const url = '/crm/ajax';
+        const url = '/ameise/ajax';
 
         if (!storedData) {
             $.ajax({
@@ -68,11 +74,16 @@ $(document).ready(function() {
                     _token: csrfToken
                 }),
                 success: function(data) {
-                    console.log(data);
+                    if (data.error === 'Redirect') {
+                        // Redirect in the current tab
+                        window.open(data.url, '_blank');
+    
+                    } else {
                     const storageKey = `apiData_${clientId}`;
                     localStorage.setItem(storageKey, JSON.stringify(data));
                     $('#contract-tag-dropdown, #division-tag-dropdown').empty();
                     populateMultiSelectOptions(data);
+                    }
                 },
                 error: function(xhr, status, error) {
                     console.error('AJAX Error:', error);
@@ -145,13 +156,15 @@ $(document).ready(function() {
         processSelectedData($('#division-tag-dropdown').select2('data'), 'divisions_data');
 
         $.ajax({
-            url: '/crm/ajax',
+            url: '/ameise/ajax',
             type: 'POST',
             data: combinedData,
             success: function(response) {
                 console.log(response);
                 if (response.status) {
                     location.reload();
+                } else if(response.error == 'Redirect'){
+                    window.open(response.url, '_blank');
                 }
             },
             error: function(error) {}
@@ -194,7 +207,7 @@ $(document).ready(function() {
         }
         let conversationId = document.body.getAttribute('data-conversation_id');
         if (coversation) {
-        fetch('/crm/'+conversationId+'/get-contracts')
+        fetch('/ameise/'+conversationId+'/get-contracts')
         .then(response => response.text())
         .then(html => {
             // Create a container div to hold the HTML

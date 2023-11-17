@@ -13,7 +13,7 @@ function initializeSelect2(context) {
             };
         },
         ajax: {
-            url: '/crm/ajax',
+            url: '/ameise/ajax',
             type: 'POST',
             dataType: 'json',
             data: function(params) {
@@ -24,6 +24,9 @@ function initializeSelect2(context) {
                 };
             },
             processResults: function(data,params) {
+                if (data.error === 'Redirect') {
+                    window.open(data.url, '_blank');
+                }
                 if (data.length === 0) {
                     var inputValue = params.term;
                     let emailRegex = /^[A-Za-z0-9._%-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,4}$/;
