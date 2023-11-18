@@ -62,19 +62,19 @@ class AmeiseModuleServiceProvider extends ServiceProvider
             echo View::make('ameise::partials/crm_users')->render();
         }, 10, 2);
 
-        Eventy::addAction('conversation.created_by_user_can_undo', function ($conversation, $thread) {
+        Eventy::addAction('conversation.created_by_user_can_undo', function ($conversation) {
             $filePath = storage_path("user_" . auth()->user()->id . "_ant.txt");
             if (file_exists($filePath)) {
                 $crmService = new \Modules\AmeiseModule\Services\CrmService('', auth()->user()->id);
-                $crmService->archiveConversationData($conversation, $thread);
+                $crmService->archiveConversationData($conversation);
             }
 
         });
-        Eventy::addAction('conversation.user_replied_can_undo', function ($conversation, $thread) {
+        Eventy::addAction('conversation.user_replied_can_undo', function ($conversation) {
             $filePath = storage_path("user_" . auth()->user()->id . "_ant.txt");
             if (file_exists($filePath)) {
                 $crmService = new \Modules\AmeiseModule\Services\CrmService('', auth()->user()->id);
-                $crmService->archiveConversationData($conversation, $thread);
+                $crmService->archiveConversationData($conversation);
             }
         });
         $this->registerSettings();
@@ -125,6 +125,9 @@ class AmeiseModuleServiceProvider extends ServiceProvider
                 ],
                 'ameise_redirect_uri' => [
                     'env' => 'AMEISE_REDIRECT_URI',
+                ],
+                'ameise_log_status' => [
+                    'env' => 'AMEISE_LOG_STATUS',
                 ],
             ];
 

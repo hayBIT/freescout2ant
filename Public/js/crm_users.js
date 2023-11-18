@@ -29,7 +29,7 @@ function initializeSelect2(context) {
                 }
                 if (data.length === 0) {
                     var inputValue = params.term;
-                    let emailRegex = /^[A-Za-z0-9._%-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,4}$/;
+                    let emailRegex = /^[A-Za-z0-9._%-]+@[A-Za-z0-9.-]+/;
                     let isEmailValid = emailRegex.test(inputValue);
                     let existingOptions = $(context).find('option');
                     if (isEmailValid && !existingOptions.is('[value="' + inputValue + '"]')) {
@@ -107,10 +107,13 @@ initializeSelect2('#to');
   }
 
   var ameiseMode = "{{ config('ameisemodule.ameise_mode') }}";
+  console.log(ameiseMode);
 
 
   // Construct the link URL based on the ameiseMode value
-  var linkUrl = (ameiseMode === 'test' ? 'https://maklerinfo.inte.dionera.dev' : 'https://maklerinfo.biz') + '/maklerportal/?show=kunde&kunde=';
+  let ameise_base_url = $('#ameise_base_url').val();
+
+  var linkUrl = ameise_base_url + 'maklerportal/?show=kunde&kunde=';
 
  
   // Define a common function to display user details

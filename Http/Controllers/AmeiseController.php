@@ -88,56 +88,13 @@ class AmeiseController extends Controller
                 break;
             case 'crm_conversation_archive':
                 $conversation = Conversation::with('threads.all_attachments')->find($inputs['conversation_id']);
-                $crm_user_id = $inputs['customer_id'];
-                $crm_user = json_decode($inputs['crm_user_data'], true);
-                $contracts = json_decode($inputs['contracts'], true);
-                $divisions = json_decode($inputs['divisions_data'], true);
-                $conversation_data = [];
-
-                if ($conversation) {
-                    $conversation_data = [
-                        'type' => ($conversation->type == 1) ? 'email' : 'telefon',
-                        'x-dio-metadaten' => [],
-                        'subject' => $conversation->subject,
-                        'body' => $conversation->preview,
-                        'Content-Type' => 'text/html; charset=utf-8',
-                        'X-Dio-Zuordnungen' => [
-                            ['Typ' => 'kunde', 'Id' => $crm_user_id],
-                            ...array_map(fn($contract) => ['Typ' => 'vertrag', 'Id' => $contract['id']], $contracts),
-                            ...array_map(fn($division) => ['Typ' => 'sparte', 'Id' => $division['id']], $divisions),
-                        ],
-                    ];
-
-                    if ($conversation->type == 1) {
-                        $conversation_data['x-dio-metadaten'][] = ['Value' => 'To', 'Text' => $conversation->customer_email];
-                        $conversation_data['x-dio-metadaten'][] = ['Value' => 'From', 'Text' => $conversation->mailbox->email];
-                        if (!empty($conversation->cc)) {
-                            $conversation_data['x-dio-metadaten'][] = ['Value' => 'cc', 'Text' => implode(', ', json_decode($conversation->cc))];
-                        }
-                        if (!empty($conversation->bcc)) {
-                            $conversation_data['x-dio-metadaten'][] = ['Value' => 'bcc', 'Text' => implode(', ', json_decode($conversation->bcc))];
-                        }
-                    }
-
-                    $userTimezone = auth()->user()->timezone;
-                    $conversation_data['X-Dio-Datum'] = Carbon::parse($conversation->created_at)->setTimezone($userTimezone)->format('Y-m-d\TH:i:s');
-
+                foreach($conversation->threads as $thread) {
+                    $crm_user_id = $inputs['customer_id'];
+                    $contracts = json_decode($inputs['contracts'], true);
+                    $divisions = json_decode($inputs['divisions_data'], true);
+                    $conversation_data = $this->crmService->createConversationData($conversation, $crm_user_id, $contracts, $divisions, $thread);
                     $this->crmService->archiveConversation($conversation_data);
-                    $allAttachments = $conversation->threads->pluck('attachments')->flatten();
-                    if ($allAttachments->isNotEmpty()) {
-                        foreach ($allAttachments as $attachment) {
-                            $attachmentData = [
-                                'type' => 'dokument',
-                                'x-dio-metadaten' => $conversation_data['x-dio-metadaten'],
-                                'subject' => $conversation->subject,
-                                'body' => file_get_contents(storage_path('app/attachment/' . $attachment['file_dir'] . $attachment['file_name'])),
-                                'Content-Type' => 'application/pdf; name="freescout.pdf"',
-                                'X-Dio-Zuordnungen' => $conversation_data['X-Dio-Zuordnungen'],
-                                'X-Dio-Datum' => $conversation_data['X-Dio-Datum'],
-                            ];
-                            $this->crmService->archiveConversation($attachmentData);
-                        }
-                    }
+                    $this->crmService->archiveConversationWithAttachments($thread, $conversation_data, $crm_user_id);
                 }
                 $crm_archive = CrmArchive::where(
                     ['conversation_id' => $inputs['conversation_id'],

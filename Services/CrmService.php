@@ -5,6 +5,7 @@ namespace Modules\AmeiseModule\Services;
 use Illuminate\Support\Facades\Request;
 use Illuminate\Support\Facades\Session;
 use GuzzleHttp\Client;
+use App\Conversation;
 use GuzzleHttp\Exception\ClientException as Exception;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log; // Import the Log facade
@@ -22,6 +23,7 @@ class CrmService
     private $code;
     private $refresh_token;
     private $redirectUrl;
+    private $amesieLogStatus;
     public $file;
     private $url;
 
@@ -41,13 +43,14 @@ class CrmService
         $this->clientSecret = config('ameisemodule.ameise_client_secret');
         $this->scope = config('ameisemodule.ameise_scope'); // e.g., 'read write'
         $this->code = $code;
+        $this->amesieLogStatus =  config('ameisemodule.ameise_log_status');
     }
 
     public function getAccessToken()
     {
         try {
             if (!file_exists(storage_path($this->file))) {
-                \Helper::log('token_end_point', 'Token file does not exist. Creating a new file.');
+                $this->amesieLogStatus && \Helper::log('token_end_point', 'Token file does not exist. Creating a new file.');
                 $result = $this->createTokenFile();
                 if(isset($result)){
                     return $result;
@@ -58,19 +61,19 @@ class CrmService
             if (!empty($tokens->ma)) {
                 $this->ma = $tokens->ma;
             } else {
-                \Helper::log('user_info', 'User info missing. Calling userInfo to retrieve it.');
+                $this->amesieLogStatus && \Helper::log('user_info', 'User info missing. Calling userInfo to retrieve it.');
 
                 $this->userInfo();
             }
             if ($this->dateTimePassed($tokens->expires_in)) {
                 $this->refresh_token = $tokens->refresh_token;
-                \Helper::log('token_end_point', 'Access token has expired. Creating a new token file.');
+                $this->amesieLogStatus && \Helper::log('token_end_point', 'Access token has expired. Creating a new token file.');
                   $this->createTokenFile();
             }
-            \Helper::log('token_end_point', 'Access token retrieved successfully.' . $this->access_token);
+            $this->amesieLogStatus && \Helper::log('token_end_point', 'Access token retrieved successfully.' . $this->access_token);
             return $this->access_token;
         } catch (\Exception $e) {
-            \Helper::logException($e, 'token_end_point');
+            $this->amesieLogStatus && \Helper::logException($e, 'token_end_point');
 
         }
     }
@@ -114,7 +117,7 @@ class CrmService
             }
 
             // Log before sending the POST request
-            \Helper::log('token_generate', 'Sending a token request to ' . $this->url . '/oauth2/token');
+            $this->amesieLogStatus && \Helper::log('token_generate', 'Sending a token request to ' . $this->url . '/oauth2/token');
 
             // Send the POST request
             $response = $client->post($this->url . '/oauth2/token', [
@@ -123,7 +126,7 @@ class CrmService
             ]);
 
             // Log after sending the POST request
-            \Helper::log('token_generate', 'Token request sent with status code: ' . $response->getStatusCode());
+            $this->amesieLogStatus && \Helper::log('token_generate', 'Token request sent with status code: ' . $response->getStatusCode());
 
             // Check if the request was successful
             if ($response->getStatusCode() === 200) {
@@ -133,16 +136,16 @@ class CrmService
                 $fp = fopen($filePath, 'w');
                 fwrite($fp, json_encode($responseData));
                 fclose($fp);
-                \Helper::log('token_generate', 'Token file created successfully.');
+                $this->amesieLogStatus && \Helper::log('token_generate', 'Token file created successfully.');
                 $this->userInfo();
             } else {
                 unlink($filePath);
-                \Helper::log('token_generate', 'Token request failed with status code: ' . $response->getStatusCode());
+                $this->amesieLogStatus && \Helper::log('token_generate', 'Token request failed with status code: ' . $response->getStatusCode());
                 $errorResponse = json_decode($response->getBody(), true);
-                \Helper::log('token_generate', 'Error response:' . json_encode($errorResponse));
+                $this->amesieLogStatus && \Helper::log('token_generate', 'Error response:' . json_encode($errorResponse));
             }
         } catch (Exception $e) {
-            \Helper::logException($e, 'token_generate');
+            $this->amesieLogStatus && \Helper::logException($e, 'token_generate');
         }
     }
 
@@ -165,7 +168,7 @@ class CrmService
         try {
             $tokens = json_decode(file_get_contents(storage_path($this->file)));
             // Log before sending the request
-            \Helper::log('user_info', 'Sending a userinfo request with access token: ' . $this->access_token);
+            $this->amesieLogStatus && \Helper::log('user_info', 'Sending a userinfo request with access token: ' . $this->access_token);
             $client = new Client();
             $response = $client->get($this->url . '/userinfo', [
                 'headers' => [
@@ -174,7 +177,7 @@ class CrmService
                 ]
             ]);
             // Log after sending the request
-            \Helper::log('user_info', 'Userinfo request response data: ' . $response->getStatusCode());
+            $this->amesieLogStatus && \Helper::log('user_info', 'Userinfo request response data: ' . $response->getStatusCode());
             if ($response->getStatusCode() === 200) {
                 $responseData = json_decode($response->getBody(), true);
                 $tokens->ma = $responseData['sub'];
@@ -186,13 +189,13 @@ class CrmService
             } else {
                 $errorResponse = json_decode($response->getBody(), true);
                 // Log the error response
-                \Helper::log('user_info', 'User info request failed with status code: ' . $response->getStatusCode());
-                \Helper::log('user_info', 'Error response:' . json_encode($errorResponse));
+                $this->amesieLogStatus && \Helper::log('user_info', 'User info request failed with status code: ' . $response->getStatusCode());
+                $this->amesieLogStatus && \Helper::log('user_info', 'Error response:' . json_encode($errorResponse));
             }
-            \Helper::log('user_info', 'User info request completed.');
+            $this->amesieLogStatus && \Helper::log('user_info', 'User info request completed.');
             return $responseData;
         } catch (Exception $e) {
-            \Helper::logException($e, 'user_info');
+            $this->amesieLogStatus && \Helper::logException($e, 'user_info');
             if ($e->getCode() === 401) {
                 $this->disconnectAmeise();
             }
@@ -209,27 +212,27 @@ class CrmService
             // Make an API request using the access token
             $client = new Client();
             // Log before sending the request
-            \Helper::log('fetch_user_id_name', 'Sending a user search request by id and name with access token: ' . $this->access_token);
+            $this->amesieLogStatus && \Helper::log('fetch_user_id_name', 'Sending a user search request by id and name with access token: ' . $this->access_token);
             $response = $client->get($this->base_url . $this->ma . '/kunden/_search?q=' . $data, [
                 'headers' => [
                     'Authorization' => 'Bearer ' . $this->access_token,
                 ],
             ]);
             // Log after sending the request
-            \Helper::log('fetch_user_id_name', 'User search request by id and name response status is: ' . $response->getStatusCode());
+            $this->amesieLogStatus && \Helper::log('fetch_user_id_name', 'User search request by id and name response status is: ' . $response->getStatusCode());
             if ($response->getStatusCode() === 200) {
                 $responseData = json_decode($response->getBody(), true);
             } elseif ($response->getStatusCode() === 401) {
                 $this->disconnectAmeise();
             } else {
                 $errorResponse = json_decode($response->getBody(), true);
-                \Helper::log('fetch_user_id_name', 'User search request failed with status code: ' . $response->getStatusCode());
-                \Helper::log('fetch_user_id_name', 'Error response: ' . json_encode($errorResponse));
+                $this->amesieLogStatus && \Helper::log('fetch_user_id_name', 'User search request failed with status code: ' . $response->getStatusCode());
+                $this->amesieLogStatus && \Helper::log('fetch_user_id_name', 'Error response: ' . json_encode($errorResponse));
             }
-            \Helper::log('fetch_user_id_name', 'User search request by id and name has been completed.');
+            $this->amesieLogStatus && \Helper::log('fetch_user_id_name', 'User search request by id and name has been completed.');
             return $responseData;
         } catch (Exception $e) {
-            \Helper::logException($e, 'fetch_user_id_name');
+            $this->amesieLogStatus && \Helper::logException($e, 'fetch_user_id_name');
             if ($e->getCode() === 401) {
                 $this->disconnectAmeise();
             }
@@ -245,26 +248,26 @@ class CrmService
             }
             // Make an API request using the access token
             $client = new Client();
-            \Helper::log('user_end_points', 'User end points request with access token: ' . $this->access_token);
+            $this->amesieLogStatus && \Helper::log('user_end_points', 'User end points request with access token: ' . $this->access_token);
             $response = $client->get($this->base_url . $this->ma . '/kunden/' . $id . '/' . $endPoints, [
                 'headers' => [
                     'Authorization' => 'Bearer ' . $this->access_token,
                 ],
             ]);
-            \Helper::log('user_end_points', 'User end points request response status: ' . $response->getStatusCode());
+            $this->amesieLogStatus && \Helper::log('user_end_points', 'User end points request response status: ' . $response->getStatusCode());
             if ($response->getStatusCode() === 200) {
                 $responseData = json_decode($response->getBody(), true);
             } elseif ($response->getStatusCode() === 401) {
                 $this->disconnectAmeise();
             } else {
                 $errorResponse = json_decode($response->getBody(), true);
-                \Helper::log('user_end_points', 'User end points request failed with status code: ' . $response->getStatusCode());
-                \Helper::log('user_end_points', 'Error response: ' . json_encode($errorResponse));
+                $this->amesieLogStatus && \Helper::log('user_end_points', 'User end points request failed with status code: ' . $response->getStatusCode());
+                $this->amesieLogStatus && \Helper::log('user_end_points', 'Error response: ' . json_encode($errorResponse));
             }
-            \Helper::log('user_end_points', 'User end points request has been completed.');
+            $this->amesieLogStatus && \Helper::log('user_end_points', 'User end points request has been completed.');
             return $responseData;
         } catch (Exception $e) {
-            \Helper::logException($e, 'user_end_points');
+            $this->amesieLogStatus && \Helper::logException($e, 'user_end_points');
             if ($e->getCode() === 401) {
                 $this->disconnectAmeise();
             }
@@ -280,7 +283,7 @@ class CrmService
             }
             // Make an API request using the access token
             $client = new Client();
-            \Helper::log('fetch_user_email', 'Fetch user by email request with access token: ' . $this->access_token);
+            $this->amesieLogStatus && \Helper::log('fetch_user_email', 'Fetch user by email request with access token: ' . $this->access_token);
             $body = json_encode([
                 'mail' => $email,
             ]);
@@ -290,20 +293,20 @@ class CrmService
                 ],
                 'body' => $body
             ]);
-            \Helper::log('fetch_user_email', 'fetch user by email request response status: ' . $response->getStatusCode());
+            $this->amesieLogStatus && \Helper::log('fetch_user_email', 'fetch user by email request response status: ' . $response->getStatusCode());
             if ($response->getStatusCode() === 200) {
                 $responseData = json_decode($response->getBody(), true);
             } elseif ($response->getStatusCode() === 401) {
                 $this->disconnectAmeise();
             } else {
                 $errorResponse = json_decode($response->getBody(), true);
-                \Helper::log('fetch_user_email', 'Fetch user by email request failed with status code: ' . $response->getStatusCode());
-                \Helper::log('fetch_user_email', 'Error response: ' . json_encode($errorResponse));
+                $this->amesieLogStatus && \Helper::log('fetch_user_email', 'Fetch user by email request failed with status code: ' . $response->getStatusCode());
+                $this->amesieLogStatus && \Helper::log('fetch_user_email', 'Error response: ' . json_encode($errorResponse));
             }
-            \Helper::log('fetch_user_email', 'fetch user by email has been completed.');
+            $this->amesieLogStatus && \Helper::log('fetch_user_email', 'fetch user by email has been completed.');
             return $responseData;
         } catch (Exception $e) {
-            \Helper::logException($e, 'fetch_user_email');
+            $this->amesieLogStatus && \Helper::logException($e, 'fetch_user_email');
             if ($e->getCode() === 401) {
                 $this->disconnectAmeise();
             }
@@ -318,26 +321,26 @@ class CrmService
                 return $resultArray;
             }
             $client = new Client();
-            \Helper::log('get_contracts', 'get contract request with access token: ' . $this->access_token);
+            $this->amesieLogStatus && \Helper::log('get_contracts', 'get contract request with access token: ' . $this->access_token);
             $response = $client->get($this->base_url . $this->ma . '/kunden/' . $customerId . '/vertraege', [
                 'headers' => [
                     'Authorization' => 'Bearer ' . $this->access_token,
                 ],
             ]);
-            \Helper::log('get_contracts', 'get contracts request response status is: ' . $response->getStatusCode());
+            $this->amesieLogStatus && \Helper::log('get_contracts', 'get contracts request response status is: ' . $response->getStatusCode());
             if ($response->getStatusCode() === 200) {
                 $responseData = json_decode($response->getBody(), true);
             } elseif ($response->getStatusCode() === 401) {
                 $this->disconnectAmeise();
             } else {
                 $errorResponse = json_decode($response->getBody(), true);
-                \Helper::log('get_contracts', 'get contract request failed with status code: ' . $response->getStatusCode());
-                \Helper::log('get_contracts', 'Error response: ' . json_encode($errorResponse));
+                $this->amesieLogStatus && \Helper::log('get_contracts', 'get contract request failed with status code: ' . $response->getStatusCode());
+                $this->amesieLogStatus && \Helper::log('get_contracts', 'Error response: ' . json_encode($errorResponse));
             }
-            \Helper::log('get_contracts', 'Get contract request has been completed.');
+            $this->amesieLogStatus && \Helper::log('get_contracts', 'Get contract request has been completed.');
             return $responseData;
         } catch (Exception $e) {
-            \Helper::logException($e, 'get_contracts');
+            $this->amesieLogStatus && \Helper::logException($e, 'get_contracts');
             if ($e->getCode() === 401) {
                 $this->disconnectAmeise();
             }
@@ -353,27 +356,27 @@ class CrmService
                 return $resultArray;
             }
             $client = new Client();
-            \Helper::log('contracts_end_points', 'get contract end points request with access token: ' . $this->access_token);
+            $this->amesieLogStatus && \Helper::log('contracts_end_points', 'get contract end points request with access token: ' . $this->access_token);
             $response = $client->get($this->base_url . $end_points, [
                 'headers' => [
                     'Authorization' => 'Bearer ' . $this->access_token,
                 ],
             ]);
-            \Helper::log('contracts_end_points', 'get contracts end points request response status is: ' . $response->getStatusCode());
+            $this->amesieLogStatus && \Helper::log('contracts_end_points', 'get contracts end points request response status is: ' . $response->getStatusCode());
             if ($response->getStatusCode() === 200) {
                 $responseData = json_decode($response->getBody(), true);
             } elseif ($response->getStatusCode() === 401) {
                 $this->disconnectAmeise();
             } else {
                 $errorResponse = json_decode($response->getBody(), true);
-                \Helper::log('contracts_end_points', 'get contract end points request failed with status code: ' . $response->getStatusCode());
-                \Helper::log('contracts_end_points', 'Error response: ' . json_encode($errorResponse));
+                $this->amesieLogStatus && \Helper::log('contracts_end_points', 'get contract end points request failed with status code: ' . $response->getStatusCode());
+                $this->amesieLogStatus && \Helper::log('contracts_end_points', 'Error response: ' . json_encode($errorResponse));
             }
-            \Helper::log('contracts_end_points', 'get contract end points  request has been completed.');
+            $this->amesieLogStatus && \Helper::log('contracts_end_points', 'get contract end points  request has been completed.');
 
             return $responseData;
         } catch (Exception $e) {
-            \Helper::logException($e, 'conversation_archive');
+            $this->amesieLogStatus && \Helper::logException($e, 'conversation_archive');
             if ($e->getCode() === 401) {
                 $this->disconnectAmeise();
             }
@@ -387,7 +390,7 @@ class CrmService
             return $resultArray;
         }
         $client = new Client();
-        \Helper::log('conversation_archive', 'archive conversation request called with access token: ' . $this->access_token);
+        $this->amesieLogStatus && \Helper::log('conversation_archive', 'archive conversation request called with access token: ' . $this->access_token);
         $headers = [
             'X-Dio-Betreff' =>  $data['subject'],
             'x-dio-metadaten' =>  json_encode($data['x-dio-metadaten']),
@@ -402,7 +405,7 @@ class CrmService
                 'headers' => $headers,
                 'body' => $data['body'],
             ]);
-            \Helper::log('conversation_archive', 'archive conversation request response status is: ' . $response->getStatusCode());
+            $this->amesieLogStatus && \Helper::log('conversation_archive', 'archive conversation request response status is: ' . $response->getStatusCode());
             // Process the response data here
             if ($response->getStatusCode() === 200) {
                 $responseData = $response->getBody();
@@ -410,12 +413,12 @@ class CrmService
                 $this->disconnectAmeise();
             } else {
                 $errorResponse = json_decode($response->getBody(), true);
-                \Helper::log('conversation_archive', 'archive conversation request failed with status code: ' . $response->getStatusCode());
-                \Helper::log('conversation_archive', 'Error response: ' . json_encode($errorResponse));
+                $this->amesieLogStatus && \Helper::log('conversation_archive', 'archive conversation request failed with status code: ' . $response->getStatusCode());
+                $this->amesieLogStatus && \Helper::log('conversation_archive', 'Error response: ' . json_encode($errorResponse));
             }
             return $responseData;
         } catch (Exception $e) {
-            \Helper::logException($e, 'conversation_archive');
+            $this->amesieLogStatus && \Helper::logException($e, 'conversation_archive');
             if ($e->getCode() === 401) {
                 $this->disconnectAmeise();
             }
@@ -477,24 +480,23 @@ class CrmService
         }
     }
 
-    public function archiveConversationData($conversation, $thread) {
-        $conversation = \App\Conversation::find($thread->conversation_id);
+    public function archiveConversationData($conversation) {
         $crmArchives = CrmArchive::where('conversation_id', $conversation->id)->get();
         if (count($crmArchives) > 0) {
             foreach ($crmArchives as $crmArchive) {
                 $contracts = !empty($crmArchive->contracts) ? json_decode($crmArchive->contracts, true) : [];
                 $divisions = !empty($crmArchive->divisions) ? json_decode($crmArchive->divisions, true) : [];
-                $conversation_data = $this->createConversationData($conversation, $crmArchive->crm_user_id, $contracts, $divisions, $thread);
+                $conversation_data = $this->createConversationData($conversation, $crmArchive->crm_user_id, $contracts, $divisions, $conversation->getLastThread());
                 $this->archiveConversation($conversation_data);
-                $this->archiveConversationWithAttachments($thread, $conversation_data, $crmArchive->crm_user_id);
+                $this->archiveConversationWithAttachments($conversation->getLastThread(), $conversation_data, $crmArchive->crm_user_id);
             }
         } else {
             $response = $this->fetchUserByEamil($conversation->customer_email);
             if (count($response) == 1) {
                 $crm_user_id = $response[0]['Id'];
-                $conversation_data  = $this->createConversationData($conversation, $crm_user_id, [], [], $thread);
+                $conversation_data  = $this->createConversationData($conversation, $crm_user_id, [], [], $conversation->getLastThread());
                 $this->archiveConversation($conversation_data);
-                $this->archiveConversationWithAttachments($thread, $conversation_data, $crm_user_id);
+                $this->archiveConversationWithAttachments($conversation->getLastThread(), $conversation_data, $crm_user_id);
                 $crm_archive = CrmArchive::firstOrNew(['conversation_id' => $conversation->id, 'crm_user_id' => $crm_user_id]);
                 $crm_archive->crm_user = json_encode(['id' => $crm_user_id, 'text' => $response[0]['Text']]);
                 $crm_archive->contracts = null;
