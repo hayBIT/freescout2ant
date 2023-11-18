@@ -7,8 +7,6 @@ use Illuminate\Database\Eloquent\Factory;
 use Eventy;
 use View;
 use Config;
-use Modules\AmeiseModule\Entities\CrmArchive;
-use Carbon\Carbon;
 
 define('AMEISE_MODULE', 'ameisemodule');
 
@@ -64,41 +62,28 @@ class AmeiseModuleServiceProvider extends ServiceProvider
             echo View::make('ameise::partials/crm_users')->render();
         }, 10, 2);
 
-        Eventy::addAction('thread.before_save_from_request', function ($thread) {
+        Eventy::addAction('conversation.created_by_user_can_undo', function ($conversation, $thread) {
             $filePath = storage_path("user_" . auth()->user()->id . "_ant.txt");
             if (file_exists($filePath)) {
                 $crmService = new \Modules\AmeiseModule\Services\CrmService('', auth()->user()->id);
-                $conversation = \App\Conversation::find($thread->conversation_id);
-                $crmArchives = CrmArchive::where('conversation_id', $conversation->id)->get();
-                if (count($crmArchives) > 0) {
-                    foreach ($crmArchives as $crmArchive) {
-                        $contracts = !empty($crmArchive->contracts) ? json_decode($crmArchive->contracts, true) : [];
-                        $divisions = !empty($crmArchive->divisions) ? json_decode($crmArchive->divisions, true) : [];
-                        $conversation_data = $crmService->createConversationData($conversation, $crmArchive->crm_user_id, $contracts, $divisions, $thread);
-                        $crmService->archiveConversation($conversation_data);
-                        $crmService->archiveConversationWithAttachments($thread, $conversation_data, $crmArchive->crm_user_id);
-                    }
-                } else {
-                    $response = $crmService->fetchUserByEamil($conversation->customer_email);
-                    if (count($response) == 1) {
-                        $crm_user_id = $response[0]['Id'];
-                        $conversation_data  = $crmService->createConversationData($conversation, $crm_user_id, [], [], $thread);
-                        $crmService->archiveConversation($conversation_data);
-                        $crmService->archiveConversationWithAttachments($thread, $conversation_data, $crm_user_id);
-                        $crm_archive = CrmArchive::firstOrNew(['conversation_id' => $conversation->id, 'crm_user_id' => $crm_user_id]);
-                        $crm_archive->crm_user = json_encode(['id' => $crm_user_id, 'text' => $response[0]['Text']]);
-                        $crm_archive->contracts = null;
-                        $crm_archive->divisions = null;
-                        $crm_archive->save();
-                    }
-                }
+                $crmService->archiveConversationData($conversation, $thread);
             }
 
-
+        });
+        Eventy::addAction('conversation.user_replied_can_undo', function ($conversation, $thread) {
+            $filePath = storage_path("user_" . auth()->user()->id . "_ant.txt");
+            if (file_exists($filePath)) {
+                $crmService = new \Modules\AmeiseModule\Services\CrmService('', auth()->user()->id);
+                $crmService->archiveConversationData($conversation, $thread);
+            }
         });
         $this->registerSettings();
     }
 
+
+    /**
+     * Register settings.
+     */
     private function registerSettings()
     {
         // Add item to settings sections.

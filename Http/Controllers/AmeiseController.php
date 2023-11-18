@@ -122,11 +122,7 @@ class AmeiseController extends Controller
                     $userTimezone = auth()->user()->timezone;
                     $conversation_data['X-Dio-Datum'] = Carbon::parse($conversation->created_at)->setTimezone($userTimezone)->format('Y-m-d\TH:i:s');
 
-                    $response = $this->crmService->archiveConversation($conversation_data);
-                    if (isset($response['error']) && isset($response['url'])) {
-                        return response()->json(['error' => 'Redirect', 'url' => $response['url']]);
-                    }
-
+                    $this->crmService->archiveConversation($conversation_data);
                     $allAttachments = $conversation->threads->pluck('attachments')->flatten();
                     if ($allAttachments->isNotEmpty()) {
                         foreach ($allAttachments as $attachment) {
@@ -139,7 +135,7 @@ class AmeiseController extends Controller
                                 'X-Dio-Zuordnungen' => $conversation_data['X-Dio-Zuordnungen'],
                                 'X-Dio-Datum' => $conversation_data['X-Dio-Datum'],
                             ];
-                            $response =$this->crmService->archiveConversation($attachmentData);
+                            $this->crmService->archiveConversation($attachmentData);
                         }
                     }
                 }
