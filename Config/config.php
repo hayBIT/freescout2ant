@@ -6,7 +6,7 @@ return [
     'ameise_response_type' => env('AMEISE_RESPONSE_TYPE', 'code'),
     'ameise_client_id' => env('AMEISE_CLIENT_ID'),
     'ameise_state' => env('AMEISE_STATE', 'freescout'),
-    'ameise_scope' => env('AMEISE_SCOPE', 'ameise/mitarbeiterwebservice offline_access'),
+    'ameise_scope' => env('AMEISE_SCOPE', 'ameise/mitarbeiterwebservice offline'),
     'ameise_redirect_uri' => env('AMEISE_REDIRECT_URI', '/crm/auth'),
     'ameise_log_status' => env('AMEISE_LOG_STATUS', true),
 
