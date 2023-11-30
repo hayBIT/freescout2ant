@@ -3,6 +3,7 @@
 namespace Modules\AmeiseModule\Http\Controllers;
 
 use App\Conversation;
+use App\Thread;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -89,12 +90,14 @@ class AmeiseController extends Controller
             case 'crm_conversation_archive':
                 $conversation = Conversation::with('threads.all_attachments')->find($inputs['conversation_id']);
                 foreach($conversation->threads as $thread) {
-                    $crm_user_id = $inputs['customer_id'];
-                    $contracts = json_decode($inputs['contracts'], true);
-                    $divisions = json_decode($inputs['divisions_data'], true);
-                     $conversation_data = $this->crmService->createConversationData($conversation, $crm_user_id, $contracts, $divisions, $thread);
-                     $this->crmService->archiveConversation($conversation_data);
-                    $this->crmService->archiveConversationWithAttachments($thread, $conversation_data);
+                    if($thread->type != Thread::TYPE_NOTE){
+                        $crm_user_id = $inputs['customer_id'];
+                        $contracts = json_decode($inputs['contracts'], true);
+                        $divisions = json_decode($inputs['divisions_data'], true);
+                         $conversation_data = $this->crmService->createConversationData($conversation, $crm_user_id, $contracts, $divisions, $thread);
+                         $this->crmService->archiveConversation($conversation_data);
+                        $this->crmService->archiveConversationWithAttachments($thread, $conversation_data);
+                    }
                 }
                 $crm_archive = CrmArchive::where(
                     ['conversation_id' => $inputs['conversation_id'],

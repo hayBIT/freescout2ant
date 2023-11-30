@@ -10,6 +10,7 @@ use GuzzleHttp\Exception\ClientException as Exception;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log; // Import the Log facade
 use Modules\AmeiseModule\Entities\CrmArchive;
+use App\Thread;
 
 class CrmService
 {
@@ -446,10 +447,10 @@ class CrmService
         }
 
         return [
-            'type' => ($conversation->type == 1) ? 'email' : 'telefon',
+            'type' =>  ($conversation->type == Conversation::TYPE_EMAIL) ? 'email' : 'telefon',
             'x-dio-metadaten' => $x_dio_metadaten,
             'subject' => $conversation->subject,
-            'body' => $thread->body,
+            'body' =>   str_replace('&nbsp;', '', strip_tags(str_replace('<br>', "\n", $thread->body))),
             'Content-Type' => 'text/html; charset=utf-8',
             'X-Dio-Datum' => Carbon::parse($thread->created_at)->setTimezone($userTimezone)->format('Y-m-d\TH:i:s'),
             'X-Dio-Zuordnungen' => array_merge(
@@ -462,46 +463,51 @@ class CrmService
 
     public function archiveConversationWithAttachments($thread, $conversation_data)
     {
-        $allAttachments = $thread->attachments;
-        $userTimezone = auth()->user()->timezone;
-        if ($allAttachments->count() > 0) {
-            foreach ($allAttachments as $attachment) {
-                $attachmentData = [
-                    'type' => 'dokument',
-                    'x-dio-metadaten' => $conversation_data['x-dio-metadaten'],
-                    'subject' => $attachment['file_name'],
-                    'body' => file_get_contents(storage_path("app/attachment/{$attachment['file_dir']}{$attachment['file_name']}")),
-                    'Content-Type' => 'application/pdf; name="freescout.pdf"',
-                    'X-Dio-Zuordnungen' => $conversation_data['X-Dio-Zuordnungen'],
-                    'X-Dio-Datum' => Carbon::parse($thread->created_at)->setTimezone($userTimezone)->format('Y-m-d\TH:i:s')
-                ];
-                $this->archiveConversation($attachmentData);
+        if($thread->type != Thread::TYPE_NOTE){
+            $allAttachments = $thread->attachments;
+            $userTimezone = auth()->user()->timezone;
+            if ($allAttachments->count() > 0) {
+                foreach ($allAttachments as $attachment) {
+                    $attachmentData = [
+                        'type' => 'dokument',
+                        'x-dio-metadaten' => $conversation_data['x-dio-metadaten'],
+                        'subject' => $attachment['file_name'],
+                        'body' => file_get_contents(storage_path("app/attachment/{$attachment['file_dir']}{$attachment['file_name']}")),
+                        'Content-Type' => 'application/pdf; name="freescout.pdf"',
+                        'X-Dio-Zuordnungen' => $conversation_data['X-Dio-Zuordnungen'],
+                        'X-Dio-Datum' => Carbon::parse($thread->created_at)->setTimezone($userTimezone)->format('Y-m-d\TH:i:s')
+                    ];
+                    $this->archiveConversation($attachmentData);
+                }
             }
         }
     }
 
     public function archiveConversationData($conversation) {
-        $crmArchives = CrmArchive::where('conversation_id', $conversation->id)->get();
-        if (count($crmArchives) > 0) {
-            foreach ($crmArchives as $crmArchive) {
-                $contracts = !empty($crmArchive->contracts) ? json_decode($crmArchive->contracts, true) : [];
-                $divisions = !empty($crmArchive->divisions) ? json_decode($crmArchive->divisions, true) : [];
-                $conversation_data = $this->createConversationData($conversation, $crmArchive->crm_user_id, $contracts, $divisions, $conversation->getLastThread());
-                $this->archiveConversation($conversation_data);
-                $this->archiveConversationWithAttachments($conversation->getLastThread(), $conversation_data);
-            }
-        } else {
-            $response = $this->fetchUserByEamil($conversation->customer_email);
-            if (count($response) == 1) {
-                $crm_user_id = $response[0]['Id'];
-                $conversation_data  = $this->createConversationData($conversation, $crm_user_id, [], [], $conversation->getLastThread());
-                $this->archiveConversation($conversation_data);
-                $this->archiveConversationWithAttachments($conversation->getLastThread(), $conversation_data);
-                $crm_archive = CrmArchive::firstOrNew(['conversation_id' => $conversation->id, 'crm_user_id' => $crm_user_id]);
-                $crm_archive->crm_user = json_encode(['id' => $crm_user_id, 'text' => $response[0]['Text']]);
-                $crm_archive->contracts = null;
-                $crm_archive->divisions = null;
-                $crm_archive->save();
+        $thread = $conversation->getLastThread();
+        if($thread->type != Thread::TYPE_NOTE){
+            $crmArchives = CrmArchive::where('conversation_id', $conversation->id)->get();
+            if (count($crmArchives) > 0) {
+                foreach ($crmArchives as $crmArchive) {
+                    $contracts = !empty($crmArchive->contracts) ? json_decode($crmArchive->contracts, true) : [];
+                    $divisions = !empty($crmArchive->divisions) ? json_decode($crmArchive->divisions, true) : [];
+                    $conversation_data = $this->createConversationData($conversation, $crmArchive->crm_user_id, $contracts, $divisions, $thread);
+                    $this->archiveConversation($conversation_data);
+                    $this->archiveConversationWithAttachments($thread, $conversation_data);
+                }
+            } else {
+                $response = $this->fetchUserByEamil($conversation->customer_email);
+                if (count($response) == 1) {
+                    $crm_user_id = $response[0]['Id'];
+                    $conversation_data  = $this->createConversationData($conversation, $crm_user_id, [], [], $thread);
+                    $this->archiveConversation($conversation_data);
+                    $this->archiveConversationWithAttachments($thread, $conversation_data);
+                    $crm_archive = CrmArchive::firstOrNew(['conversation_id' => $conversation->id, 'crm_user_id' => $crm_user_id]);
+                    $crm_archive->crm_user = json_encode(['id' => $crm_user_id, 'text' => $response[0]['Text']]);
+                    $crm_archive->contracts = null;
+                    $crm_archive->divisions = null;
+                    $crm_archive->save();
+                }
             }
         }
 
