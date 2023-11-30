@@ -1,167 +1,105 @@
 $(document).ready(function() {
   const csrfToken = $('meta[name="csrf-token"]').attr('content');
  // Initialize a single Select2 instance for email address selection
-// function initializeSelect2(context) {
+function initializeSelect2(context) {
 
-//     $(context).select2({
-//         tokenSeparators: [',', ' '],
-//         createTag: function(params) {
-//             return {
-//                 id: params.term,
-//                 text: params.term,
-//                 newTag: true
-//             };
-//         },
-//         ajax: {
-//             url: '/ameise/ajax',
-//             type: 'POST',
-//             dataType: 'json',
-//             data: function(params) {
-//                 return {
-//                     search: params.term,
-//                     action: 'crm_users_search',
-//                     _token: csrfToken
-//                 };
-//             },
-//             processResults: function(data,params) {
-//                 if (data.error === 'Redirect') {
-//                     window.open(data.url, '_blank');
-//                 }
-//                 if (data.length === 0) {
-//                     var inputValue = params.term;
-//                     let emailRegex = /^[A-Za-z0-9._%-]+@[A-Za-z0-9.-]+/;
-//                     let isEmailValid = emailRegex.test(inputValue);
-//                     let existingOptions = $(context).find('option');
-//                     if (isEmailValid && !existingOptions.is('[value="' + inputValue + '"]')) {
-//                         data.push({
-//                             id: inputValue,
-//                             text: inputValue
-//                         });
-//                         return {
-//                             results: data
-//                         };
-//                     }
-                    
-//                 } else {
-//                     return {
-//                         results: data.map(function(item) {
-//                             return {
-//                                 id: item.id,
-//                                 text: item.text,
-//                                 disabled: item.emails.length === 0,
-//                                 children: item.emails.map(function(email_data) {
-//                                     return {
-//                                         id: email_data,
-//                                         text: email_data,
-//                                         record: item
-//                                     };
-//                                 }),
-//                             };
-//                         })
-//                     };
-//                 }
-//             }
-//         },
-//         minimumInputLength: 2,
-//         placeholder: 'Searching...',
-//         allowClear: true
-//     });   
-// }
- 
-
-var debounceTimer;
-
-
-$('#to').on('select2:open', function (event) {
-    var xhr;
-
-    $(this).next('.select2-container').find('.select2-search__field:first').on('input', function () {
-        var searchTerm = $(this).val();
-        clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(function () {
-            xhr = $.ajax({
-                url: '/ameise/ajax',
-                type: 'POST',
-                dataType: 'json',
-                data: {
-                    search: searchTerm,
+    $(context).select2({
+        tokenSeparators: [',', ' '],
+        createTag: function(params) {
+            return {
+                id: params.term,
+                text: params.term,
+                newTag: true
+            };
+        },
+        ajax: {
+            url: '/ameise/ajax',
+            type: 'POST',
+            dataType: 'json',
+            data: function(params) {
+                return {
+                    search: params.term,
                     action: 'crm_users_search',
+                    new_conversation: true,
                     _token: csrfToken
-                },
-                success: function (data) {
-                    if (data.error === 'Redirect') {
-                        window.open(data.url, '_blank');
-                        return;
+                };
+            },
+            processResults: function(data,params) {
+                if (data.error === 'Redirect') {
+                    window.open(data.url, '_blank');
+                }
+                if (data.length === 0) {
+                    var inputValue = params.term;
+                    let emailRegex = /^[A-Za-z0-9._%-]+@[A-Za-z0-9.-]+/;
+                    let isEmailValid = emailRegex.test(inputValue);
+                    let existingOptions = $(context).find('option');
+                    if (isEmailValid && !existingOptions.is('[value="' + inputValue + '"]')) {
+                        data.push({
+                            id: inputValue,
+                            text: inputValue
+                        });
+                        return {
+                            results: data
+                        };
+                    }
+                    
+                } else {
+                    let results = [];
+
+                    if (data.crmUsers.length > 0) {
+                        let crmUsersGroup = {
+                            text: 'Ameise Users',
+                            children: []
+                        };
+                        data.crmUsers.forEach(function(user) {
+                            crmUsersGroup.children.push({
+                                id: user.id,
+                                text: user.text,
+                                disabled: user.emails.length === 0,
+                                children: user.emails.map(function(email_data) {
+                                    return {
+                                        id: email_data,
+                                        text: email_data,
+                                        record: user
+                                    };
+                                }),
+                            });
+                        });
+                        results.push(crmUsersGroup);
                     }
 
-                    var $select2 = $('#to');
-                    var existingData = $select2.select2('data');
-
-                    // Clear existing options before appending new ones
-                    $select2.empty();
-
-                    // Process the API response and update the Select2 instance
-                    var newOptions = data.reduce(function (accumulator, item) {
-                        accumulator.push({
-                            id: item.id,
-                            text: item.text,
-                            disabled: item.emails.length === 0,
-                            children: item.emails.map(function (email_data) {
-                                return {
-                                    id: email_data,
-                                    text: email_data,
-                                    record: item
-                                };
-                            })
-                        });
-                        accumulator.push.apply(accumulator, item.children);
-                        return accumulator;
-                    }, []);
-
-                    // Append existing options back
-                    existingData.forEach(function (existingOption) {
-                        $select2.append(new Option(existingOption.text, existingOption.id, false, false));
-                    });
-
-                    // Append new options
-                    newOptions.forEach(function (newOption) {
-                        var $newOption = new Option(newOption.text, newOption.id, false, false);
-
-                        if (newOption.children && newOption.children.length > 0) {
-                            newOption.children.forEach(function (child) {
-                                var $childOption = new Option(child.text, child.id, false, false);
-                                $newOption.appendChild($childOption);
+                    if (data.fsUsers.length > 0) {
+                        let fsUsersGroup = {
+                            text: 'Other Users',
+                            children: []
+                        };
+                        data.fsUsers.forEach(function(user) {
+                            fsUsersGroup.children.push({
+                                id: user.id,
+                                text: user.text
                             });
-                        }
+                        });
+                        results.push(fsUsersGroup);
+                    }
 
-                        $select2.append($newOption);
-                    });
-
-                    // Trigger the change event to refresh Select2
-                    $select2.trigger('change.select2');
-
-                },
-                error: function (error) {
-                    console.error('Error fetching data:', error);
+                    return { results: results };                    
                 }
-            });
-        }, 500); // Adjust the debounce time as needed
-    });
-});
+            }
+        },
+        minimumInputLength: 2,
+        placeholder: 'Searching...',
+        allowClear: true
+    });   
+}
+ 
+// Initialize Select2 for CC
+initializeSelect2('#cc');
 
+// Initialize Select2 for BCC
+initializeSelect2('#bcc');
 
-
-// // Initialize Select2 for CC
-// initializeSelect2('#cc');
-
-// // Initialize Select2 for BCC
-// initializeSelect2('#bcc');
-
-// // Initialize Select2 for TO
-// initializeSelect2('#to');
-
-
-
+// Initialize Select2 for TO
+initializeSelect2('#to');
 
 
   let coversation = document.getElementById('conv-layout-customer');

@@ -31,36 +31,11 @@ class AmeiseController extends Controller
         $inputs = $request->all();
         switch ($request->action) {
             case 'crm_users_search':
-                $response = $this->crmService->fetchUserByIdOrName($inputs['search']);
-                if (isset($response['error']) && isset($response['url'])) {
-                    return response()->json(['error' => 'Redirect', 'url' => $response['url']]);
+                $results = [];
+                if(!empty($inputs['new_conversation'])) {
+                    $results = $this->crmService->getFSUsers($inputs);
                 }
-                $crmUsers = [];
-                foreach($response as $data) {
-                    $emails = $phone =  [];
-                    $contactDetails = $this->crmService->fetchUserDetail($data['Id'], 'kontaktdaten');
-                    foreach ($contactDetails as $item) {
-                        if ($item["Typ"] === "email") {
-                            $emails[] = $item["Value"];
-                        } elseif($item['Typ'] == 'telefon') {
-                            $phone [] = $item['Value'];
-                        }
-                    }
-                    $crmUsers[] = array(
-                        'id' => $data['Id'],
-                        'text' => $data['Text'],
-                        'id_name' => $data['Person']['Vorname'] . " " . $data['Person']['Nachname'] . "(" . $data['Id'] . ")",
-                        'first_name' => $data['Person']['Vorname'],
-                        'last_name'  => $data['Person']['Nachname'],
-                        'address'    => $data['Hauptwohnsitz']['Strasse'],
-                        'zip'        => $data['Hauptwohnsitz']['Postleitzahl'],
-                        'city'       => $data['Hauptwohnsitz']['Ort'],
-                        'country'    => $data['Hauptwohnsitz']['Land'],
-                        'emails'     => $emails,
-                        'phones'     => $phone,
-                    );
-                }
-                return response()->json($crmUsers);
+                return $this->crmService->getCrmUsers($inputs, $results);
                 break;
 
             case 'get_contract':

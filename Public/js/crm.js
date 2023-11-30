@@ -26,9 +26,9 @@ $(document).ready(function() {
                     window.open(data.url, '_blank');
 
                 } else {
-                    dataList = data;
+                    dataList = data.crmUsers;
                     searchIcon.hide();
-                    const suggestions = data.map(item => ({
+                    const suggestions = dataList.map(item => ({
                         id: item.id, // Assuming "id" is the property containing the ID
                         text: item.text // Assuming "text" is the property containing the text
                     }));
