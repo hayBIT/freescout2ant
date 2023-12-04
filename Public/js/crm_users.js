@@ -2,16 +2,7 @@ $(document).ready(function() {
   const csrfToken = $('meta[name="csrf-token"]').attr('content');
  // Initialize a single Select2 instance for email address selection
 function initializeSelect2(context) {
-
-    $(context).select2({
-        tokenSeparators: [',', ' '],
-        createTag: function(params) {
-            return {
-                id: params.term,
-                text: params.term,
-                newTag: true
-            };
-        },
+    let options = {
         ajax: {
             url: '/ameise/ajax',
             type: 'POST',
@@ -29,10 +20,10 @@ function initializeSelect2(context) {
                     window.open(data.url, '_blank');
                 }
                 if (data.length === 0) {
-                    var inputValue = params.term;
+                    let inputValue = params.term;
                     let emailRegex = /^[A-Za-z0-9._%-]+@[A-Za-z0-9.-]+/;
                     let isEmailValid = emailRegex.test(inputValue);
-                    let existingOptions = $(context).find('option');
+                    let existingOptions = context.find('option');
                     if (isEmailValid && !existingOptions.is('[value="' + inputValue + '"]')) {
                         data.push({
                             id: inputValue,
@@ -46,7 +37,7 @@ function initializeSelect2(context) {
                 } else {
                     let results = [];
 
-                    if (data.crmUsers.length > 0) {
+                    if (data.crmUsers && data.crmUsers.length > 0) {
                         let crmUsersGroup = {
                             text: 'Ameise Users',
                             children: []
@@ -68,7 +59,7 @@ function initializeSelect2(context) {
                         results.push(crmUsersGroup);
                     }
 
-                    if (data.fsUsers.length > 0) {
+                    if (data.fsUsers && data.fsUsers.length > 0) {
                         let fsUsersGroup = {
                             text: 'Other Users',
                             children: []
@@ -88,18 +79,59 @@ function initializeSelect2(context) {
         },
         minimumInputLength: 2,
         placeholder: 'Searching...',
-        allowClear: true
-    });   
+        allowClear: true,
+        containerCssClass: "select2-multi-container", // select2-with-loader
+        dropdownCssClass: "select2-multi-dropdown",
+    };
+    //Add new email on the spot
+   	let token_separators = [",", ", ", " "];
+    $.extend(options, {
+        multiple: true,
+        tags: true,
+        tokenSeparators: token_separators,
+        createTag: function (params) {
+            // Don't allow to create a tag if there is no @ symbol
+            if (!/^.+@.+$/.test(params.term)) {
+                // Return null to disable tag creation
+                return null;
+            }
+            // Check if select already has such option
+            let data = this.select2('data');
+            console.log(data);
+            for (i in data) {
+                if (data[i].id == params.term) {
+                    return null;
+                }
+            }
+            return {
+                id: params.term,
+                text: params.term,
+                newOption: true
+            }
+        }.bind(context),
+        templateResult: function (data) {
+            let $result = $("<span></span>");
+
+            $result.text(data.text);
+
+            if (data.newOption) {
+                $result.append(" <em>("+Lang.get("messages.add_lower")+")</em>");
+            }
+
+            return $result;
+        }
+    });
+    context.select2(options);   
 }
  
 // Initialize Select2 for CC
-initializeSelect2('#cc');
+initializeSelect2($('#cc'));
 
 // Initialize Select2 for BCC
-initializeSelect2('#bcc');
+initializeSelect2($('#bcc'));
 
 // Initialize Select2 for TO
-initializeSelect2('#to');
+initializeSelect2($('#to'));
 
 
   let coversation = document.getElementById('conv-layout-customer');
