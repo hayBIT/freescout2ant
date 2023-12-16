@@ -10,6 +10,7 @@ use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
 use Modules\AmeiseModule\Services\CrmService;
 use Modules\AmeiseModule\Entities\CrmArchive;
+use Modules\AmeiseModule\Entities\CrmArchiveThread;
 
 class AmeiseController extends Controller
 {
@@ -63,32 +64,35 @@ class AmeiseController extends Controller
                 return response()->json(['contracts' => $groupedData, 'divisions' => $divisionResponse]);
                 break;
             case 'crm_conversation_archive':
-                $conversation = Conversation::with('threads.all_attachments')->find($inputs['conversation_id']);
-                foreach($conversation->threads as $thread) {
-                    if($thread->type != Thread::TYPE_NOTE){
-                        $crm_user_id = $inputs['customer_id'];
-                        $contracts = json_decode($inputs['contracts'], true);
-                        $divisions = json_decode($inputs['divisions_data'], true);
-                         $conversation_data = $this->crmService->createConversationData($conversation, $crm_user_id, $contracts, $divisions, $thread);
-                         $this->crmService->archiveConversation($conversation_data);
-                        $this->crmService->archiveConversationWithAttachments($thread, $conversation_data);
-                    }
-                }
                 $crm_archive = CrmArchive::where(
                     ['conversation_id' => $inputs['conversation_id'],
                     'crm_user_id' => $inputs['customer_id']
-                    ]
-                )->first();
-
+                    ])->first();
                 if(!$crm_archive) {
                     $crm_archive = new CrmArchive();
                     $crm_archive->crm_user_id = $inputs['customer_id'];
                     $crm_archive->conversation_id = $inputs['conversation_id'];
+                    $crm_archive->archived_by = auth()->user()->id;
                 }
                 $crm_archive->crm_user = $inputs['crm_user_data'];
                 $crm_archive->contracts = $inputs['contracts'];
                 $crm_archive->divisions = $inputs['divisions_data'];
                 $crm_archive->save();
+                $conversation = Conversation::with('threads.all_attachments')->find($inputs['conversation_id']);
+                foreach($conversation->threads as $thread) {
+                    $isArchiveThread = CrmArchiveThread::where('crm_archive_id', $crm_archive->id)->where('thread_id',$thread->id)->first();
+                    if(!$isArchiveThread){
+                        if($thread->type != Thread::TYPE_NOTE) {
+                            $crm_user_id = $inputs['customer_id'];
+                            $contracts = json_decode($inputs['contracts'], true);
+                            $divisions = json_decode($inputs['divisions_data'], true);
+                            $conversation_data = $this->crmService->createConversationData($conversation, $crm_user_id, $contracts, $divisions, $thread);
+                            $this->crmService->archiveConversation($conversation_data);
+                            $this->crmService->archiveConversationWithAttachments($thread, $conversation_data);
+                            CrmArchiveThread::create(['crm_archive_id' => $crm_archive->id,'thread_id' => $thread->id,'conversation_id'=> $conversation->id ]);
+                        }
+                    }
+                }
                 return response()->json(['status' => true]);
                 break;
 
