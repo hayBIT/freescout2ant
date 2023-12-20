@@ -13,8 +13,7 @@
     "img": "/modules/ameisemodule/images/icon.png", 
     "order": 0,
     "providers": [
-        "Modules\\AmeiseModule\\Providers\\AmeiseModuleServiceProvider",
-        "Modules\\AmeiseModule\\Providers\\ScheduleServiceProvider"
+        "Modules\\AmeiseModule\\Providers\\AmeiseModuleServiceProvider"
     ],
     "aliases": {},
     "files": [

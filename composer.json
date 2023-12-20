@@ -10,8 +10,7 @@
     "extra": {
         "laravel": {
             "providers": [
-                "Modules\\AmeiseModule\\Providers\\AmeiseModuleServiceProvider",
-                "Modules\\AmeiseModule\\Providers\\ScheduleServiceProvider"
+                "Modules\\AmeiseModule\\Providers\\AmeiseModuleServiceProvider"
             ],
             "aliases": {
                 

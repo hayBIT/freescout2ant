@@ -7,6 +7,9 @@ use Illuminate\Database\Eloquent\Factory;
 use Eventy;
 use View;
 use Config;
+use Illuminate\Console\Scheduling\Schedule;
+use Illuminate\Support\Facades\Event;
+use Modules\AmeiseModule\Console\Commands\ArchiveThreads;
 
 define('AMEISE_MODULE', 'ameisemodule');
 
@@ -32,7 +35,9 @@ class AmeiseModuleServiceProvider extends ServiceProvider
         $viewPath = resource_path('views/modules/ameisemodule');
 
         $sourcePath = __DIR__ . '/../Resources/views';
-
+        $this->commands([
+            ArchiveThreads::class,
+        ]);
         $this->publishes([
             $sourcePath => $viewPath,
         ], 'views');
@@ -41,6 +46,10 @@ class AmeiseModuleServiceProvider extends ServiceProvider
             return $path . '/modules/ameisemodule';
         }, Config::get('view.paths')), [ $sourcePath ]), 'ameise');
         $this->hooks();
+         // Trigger the scheduling after the application has booted
+        Event::listen('bootstrapped: Illuminate\Foundation\Bootstrap\BootProviders', function () {
+            $this->schedule();
+        });
     }
 
     /**
@@ -219,5 +228,13 @@ class AmeiseModuleServiceProvider extends ServiceProvider
     public function provides()
     {
         return [];
+    }
+
+    protected function schedule()
+    {
+        // Assuming you have access to the Schedule instance here
+        // If not, you may need to resolve it from the container
+        $schedule = app(Schedule::class);
+        $schedule->command('ameise:archive-threads')->everyFiveMinutes();
     }
 }

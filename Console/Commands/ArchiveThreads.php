@@ -40,6 +40,8 @@ class ArchiveThreads extends Command {
      */
     public function handle()
     {
+      config('ameisemodule.ameise_log_status') && \Helper::log('Ameise Cron Log', 'Cron Job Started');
+
       $crmArchiveThreads = CrmArchiveThread::where('created_at','>=', now()->subDays(60))
       ->get();
       $convesation_ids = $crmArchiveThreads->pluck('conversation_id')->toArray();
