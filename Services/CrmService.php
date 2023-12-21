@@ -71,13 +71,12 @@ class CrmService
             if ($this->dateTimePassed($tokens->expires_in)) {
                 $this->refresh_token = $tokens->refresh_token;
                 $this->amesieLogStatus && \Helper::log('token_end_point', 'Access token has expired. Creating a new token file.');
-                  $this->createTokenFile();
+                $this->createTokenFile();
             }
             $this->amesieLogStatus && \Helper::log('token_end_point', 'Access token retrieved successfully.' . $this->access_token);
             return $this->access_token;
         } catch (\Exception $e) {
             $this->amesieLogStatus && \Helper::logException($e, 'token_end_point');
-
         }
     }
 
@@ -412,6 +411,7 @@ class CrmService
             // Process the response data here
             if ($response->getStatusCode() === 200) {
                 $responseData = $response->getBody();
+                return $responseData;
             } elseif ($response->getStatusCode() === 401) {
                 $this->disconnectAmeise();
             } else {
@@ -419,13 +419,13 @@ class CrmService
                 $this->amesieLogStatus && \Helper::log('conversation_archive', 'archive conversation request failed with status code: ' . $response->getStatusCode());
                 $this->amesieLogStatus && \Helper::log('conversation_archive', 'Error response: ' . json_encode($errorResponse));
             }
-            return $responseData;
         } catch (Exception $e) {
             $this->amesieLogStatus && \Helper::logException($e, 'conversation_archive');
             if ($e->getCode() === 401) {
                 $this->disconnectAmeise();
             }
         }
+        return false;
     }
 
     public function getAuthURl()
@@ -440,7 +440,7 @@ class CrmService
         $x_dio_metadaten = [];
         $metaData = [
             'To' => !empty($thread->to) ? json_decode($thread->to) : null,
-            'From' => $conversation->mailbox_id ? $conversation->mailbox->email : null,
+            'From' => !empty($thread->from) ? $thread->from : ($conversation->mailbox_id ? $conversation->mailbox->email : null),
             'cc' =>   !empty($thread->cc) ? json_decode($thread->cc) : null,
             'bcc' =>    !empty($thread->bcc) ? json_decode($thread->bcc) : null,
         ];
@@ -497,9 +497,10 @@ class CrmService
                         $contracts = !empty($crmArchive->contracts) ? json_decode($crmArchive->contracts, true) : [];
                         $divisions = !empty($crmArchive->divisions) ? json_decode($crmArchive->divisions, true) : [];
                         $conversation_data = $this->createConversationData($conversation, $crmArchive->crm_user_id, $contracts, $divisions, $thread, $user);
-                        $this->archiveConversation($conversation_data);
-                        $this->archiveConversationWithAttachments($thread, $conversation_data, $user);
-                        CrmArchiveThread::create(['crm_archive_id' => $crmArchive->id,'thread_id' => $thread->id,'conversation_id'=> $conversation->id ]);
+                        if($this->archiveConversation($conversation_data)) {
+                            $this->archiveConversationWithAttachments($thread, $conversation_data, $user);
+                            CrmArchiveThread::create(['crm_archive_id' => $crmArchive->id,'thread_id' => $thread->id,'conversation_id'=> $conversation->id ]);
+                        }
                     }
                 }
             } else {
@@ -507,14 +508,15 @@ class CrmService
                 if (count($response) == 1) {
                     $crm_user_id = $response[0]['Id'];
                     $conversation_data  = $this->createConversationData($conversation, $crm_user_id, [], [], $thread, $user);
-                    $this->archiveConversation($conversation_data);
-                    $this->archiveConversationWithAttachments($thread, $conversation_data, $user);
-                    $crm_archive = CrmArchive::firstOrNew(['conversation_id' => $conversation->id, 'crm_user_id' => $crm_user_id,'archived_by' => $user->id]);
-                    $crm_archive->crm_user = json_encode(['id' => $crm_user_id, 'text' => $response[0]['Text']]);
-                    $crm_archive->contracts = null;
-                    $crm_archive->divisions = null;
-                    $crm_archive->save();
-                    CrmArchiveThread::create(['crm_archive_id' => $crm_archive->id,'thread_id' => $thread->id,'conversation_id'=> $conversation->id ]);
+                    if($this->archiveConversation($conversation_data)) {
+                        $this->archiveConversationWithAttachments($thread, $conversation_data, $user);
+                        $crm_archive = CrmArchive::firstOrNew(['conversation_id' => $conversation->id, 'crm_user_id' => $crm_user_id,'archived_by' => $user->id]);
+                        $crm_archive->crm_user = json_encode(['id' => $crm_user_id, 'text' => $response[0]['Text']]);
+                        $crm_archive->contracts = null;
+                        $crm_archive->divisions = null;
+                        $crm_archive->save();
+                        CrmArchiveThread::create(['crm_archive_id' => $crm_archive->id,'thread_id' => $thread->id,'conversation_id'=> $conversation->id ]);
+                    }
                 }
             }
         }

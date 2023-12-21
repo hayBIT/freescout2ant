@@ -87,9 +87,10 @@ class AmeiseController extends Controller
                             $contracts = json_decode($inputs['contracts'], true);
                             $divisions = json_decode($inputs['divisions_data'], true);
                             $conversation_data = $this->crmService->createConversationData($conversation, $crm_user_id, $contracts, $divisions, $thread);
-                            $this->crmService->archiveConversation($conversation_data);
-                            $this->crmService->archiveConversationWithAttachments($thread, $conversation_data);
-                            CrmArchiveThread::create(['crm_archive_id' => $crm_archive->id,'thread_id' => $thread->id,'conversation_id'=> $conversation->id ]);
+                            if($this->crmService->archiveConversation($conversation_data)) {                        
+                                $this->crmService->archiveConversationWithAttachments($thread, $conversation_data);
+                                CrmArchiveThread::create(['crm_archive_id' => $crm_archive->id,'thread_id' => $thread->id,'conversation_id'=> $conversation->id ]);
+                            }
                         }
                     }
                 }
