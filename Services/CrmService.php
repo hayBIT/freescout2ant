@@ -453,7 +453,7 @@ class CrmService
             'type' =>  ($conversation->type == Conversation::TYPE_EMAIL) ? 'email' : 'telefon',
             'x-dio-metadaten' => $x_dio_metadaten,
             'subject' => $conversation->subject,
-            'body' =>   str_replace('&nbsp;', '', strip_tags(str_replace('<br>', "\n", $thread->body))),
+            'body' => html_entity_decode(strip_tags(str_replace('<br>', "\n", $thread->body))),
             'Content-Type' => 'text/html; charset=utf-8',
             'X-Dio-Datum' => Carbon::parse($thread->created_at)->setTimezone($userTimezone)->format('Y-m-d\TH:i:s'),
             'X-Dio-Zuordnungen' => array_merge(
