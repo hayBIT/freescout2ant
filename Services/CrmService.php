@@ -439,10 +439,10 @@ class CrmService
         $userTimezone = $user->timezone;
         $x_dio_metadaten = [];
         $metaData = [
-            'To' => !empty($thread->to) ? json_decode($thread->to) : null,
-            'From' => !empty($thread->from) ? $thread->from : ($conversation->mailbox_id ? $conversation->mailbox->email : null),
-            'cc' =>   !empty($thread->cc) ? json_decode($thread->cc) : null,
-            'bcc' =>    !empty($thread->bcc) ? json_decode($thread->bcc) : null,
+            'An' => !empty($thread->to) ? json_decode($thread->to) : null,
+            'Von' => !empty($thread->from) ? $thread->from : ($conversation->mailbox_id ? $conversation->mailbox->email : null),
+            'CC' =>   !empty($thread->cc) ? json_decode($thread->cc) : null,
+            'BCC' =>    !empty($thread->bcc) ? json_decode($thread->bcc) : null,
         ];
         foreach ($metaData as $key => $value) {
             $text = is_array($value) ? implode(', ', $value) : $value;
