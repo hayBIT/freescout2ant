@@ -47,7 +47,7 @@ class ArchiveThreads extends Command {
       $convesation_ids = $crmArchiveThreads->pluck('conversation_id')->toArray();
       $thread_ids = $crmArchiveThreads->pluck('thread_id')->toArray();
       $threads = Thread::where('threads.created_at', '>=', now()->subDays(60))
-      ->whereIn('type', [Thread::TYPE_CUSTOMER, Thread::TYPE_CUSTOMER])
+      ->where('type', '!=', Thread::TYPE_NOTE)
       ->where('state', Thread::STATE_PUBLISHED)
         ->whereNotIn('threads.id', $thread_ids)
         ->whereIn('threads.conversation_id', $convesation_ids)
