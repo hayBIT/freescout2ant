@@ -13,31 +13,36 @@
                 @if ($archives->isNotEmpty() && file_exists(storage_path('user_' . auth()->user()->id . '_ant.txt')))
                     <div class="conversation-archives-data">
                         @foreach ($archives as $archive)
+                            @php
+                                // Sicherstellen, dass crm_user decodiert werden kann
+                                $user = $archive->crm_user ? json_decode($archive->crm_user, true) : [];
+                            @endphp
+
                             <div class="conversation-archives">
-                                
-                                    @php
-                                        $user = json_decode($archive->crm_user, true);
-                                    @endphp
-                                    <a style="font-size:14px;" target="_blank"
-                                        href="{{ (config('ameisemodule.ameise_mode') == 'test' ? 'https://maklerinfo.inte.dionera.dev' : 'https://www.maklerinfo.biz') }}/maklerportal/?show=kunde&kunde={{ $user['id'] }}"><p>{{ $user['text'] }}</p></a>
+                                <a style="font-size:14px;" target="_blank"
+                                   href="{{ (config('ameisemodule.ameise_mode') == 'test' ? 'https://maklerinfo.inte.dionera.dev' : 'https://www.maklerinfo.biz') }}/maklerportal/?show=kunde&kunde={{ $user['id'] ?? '' }}">
+                                    <p>{{ $user['text'] ?? '' }}</p>
+                                </a>
+
                                 @php
-                                    $contracts = !empty($archive->contracts) ? json_decode($archive->contracts, true) : "";
+                                    $contracts = $archive->contracts ? json_decode($archive->contracts, true) : [];
                                 @endphp
-                                @if ($contracts)
+                                @if (!empty($contracts))
                                     @foreach ($contracts as $contract)
                                         <div class="contract-tag">
-                                            <span class="tag-text glyphicon glyphicon-file"></span>{{ $contract['text'] }}</div>
+                                            <span class="tag-text glyphicon glyphicon-file"></span>{{ $contract['text'] ?? '' }}
+                                        </div>
                                     @endforeach
                                 @endif
 
                                 @php
-                                    $divisions = !empty($archive->divisions) ?  json_decode($archive->divisions, true) :"";
+                                    $divisions = $archive->divisions ? json_decode($archive->divisions, true) : [];
                                 @endphp
-                                @if ($divisions)
+                                @if (!empty($divisions))
                                     @foreach ($divisions as $division)
                                         <div class="division-tag">
-                                            <span class="tag-text glyphicon glyphicon-circle">
-                                            </span>{{ $division['text'] }}</div>
+                                            <span class="tag-text glyphicon glyphicon-circle"></span>{{ $division['text'] ?? '' }}
+                                        </div>
                                     @endforeach
                                 @endif
                             </div>
