@@ -72,17 +72,25 @@ class AmeiseModuleServiceProvider extends ServiceProvider
         }, 10, 2);
 
         Eventy::addAction('conversation.created_by_user_can_undo', function ($conversation) {
-            $filePath = storage_path("user_" . auth()->user()->id . "_ant.txt");
+            $user = auth()->user();
+            if (!$user) {
+                return;
+            }
+            $filePath = storage_path("user_" . $user->id . "_ant.txt");
             if (file_exists($filePath)) {
-                $crmService = new \Modules\AmeiseModule\Services\CrmService('', auth()->user()->id);
+                $crmService = new \Modules\AmeiseModule\Services\CrmService('', $user->id);
                 $crmService->archiveConversationData($conversation);
             }
 
         });
         Eventy::addAction('conversation.user_replied_can_undo', function ($conversation) {
-            $filePath = storage_path("user_" . auth()->user()->id . "_ant.txt");
+            $user = auth()->user();
+            if (!$user) {
+                return;
+            }
+            $filePath = storage_path("user_" . $user->id . "_ant.txt");
             if (file_exists($filePath)) {
-                $crmService = new \Modules\AmeiseModule\Services\CrmService('', auth()->user()->id);
+                $crmService = new \Modules\AmeiseModule\Services\CrmService('', $user->id);
                 $crmService->archiveConversationData($conversation);
             }
         });
