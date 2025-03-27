@@ -125,10 +125,10 @@ function initializeSelect2(context) {
 }
  
 // Initialize Select2 for CC
-initializeSelect2($('#cc'));
+//initializeSelect2($('#cc'));
 
 // Initialize Select2 for BCC
-initializeSelect2($('#bcc'));
+//initializeSelect2($('#bcc'));
 
 // Initialize Select2 for TO
 initializeSelect2($('#to'));
