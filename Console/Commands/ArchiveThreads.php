@@ -6,7 +6,7 @@ use App\User;
 use Illuminate\Console\Command;
 use Modules\AmeiseModule\Entities\CrmArchive;
 use Modules\AmeiseModule\Entities\CrmArchiveThread;
-use Modules\AmeiseModule\Jobs\ArcheiveThreads;
+use Modules\AmeiseModule\Jobs\ArchiveThreads;
 
 class ArchiveThreads extends Command {
    /**
@@ -57,7 +57,7 @@ class ArchiveThreads extends Command {
         ->groupBy('archived_by')->pluck('archived_by')->toArray();
         $users = User::whereIn('id', $archives)->get();
         foreach ($users as $user) {
-          ArcheiveThreads::dispatch($thread->conversation, $thread, $user);
+          ArchiveThreads::dispatch($thread->conversation, $thread, $user);
         }
       }
                
