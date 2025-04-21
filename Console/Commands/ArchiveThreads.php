@@ -8,7 +8,7 @@ use Modules\AmeiseModule\Entities\CrmArchive;
 use Modules\AmeiseModule\Entities\CrmArchiveThread;
 use Modules\AmeiseModule\Jobs\ArchiveThreads;
 
-class ArchiveThreads extends Command {
+class ArchiveThreadsJob extends Command {
    /**
      * The name and signature of the console command.
      *
@@ -57,7 +57,7 @@ class ArchiveThreads extends Command {
         ->groupBy('archived_by')->pluck('archived_by')->toArray();
         $users = User::whereIn('id', $archives)->get();
         foreach ($users as $user) {
-          ArchiveThreads::dispatch($thread->conversation, $thread, $user);
+          ArchiveThreadsJob::dispatch($thread->conversation, $thread, $user);
         }
       }
                
