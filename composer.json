@@ -1,6 +1,7 @@
 {
     "name": "freescout/ameisemodule",
-    "description": "",
+    "description": "Freescout-Modul zur Anbindung von Ameise CRM",
+    "keywords": ["freescout", "ameise", "crm", "integration"],
     "authors": [
         {
             "name": "FreeScout",
