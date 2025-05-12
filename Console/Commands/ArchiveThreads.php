@@ -1,4 +1,5 @@
 <?php
+
 namespace Modules\AmeiseModule\Console\Commands;
 
 use App\Thread;
@@ -6,10 +7,11 @@ use App\User;
 use Illuminate\Console\Command;
 use Modules\AmeiseModule\Entities\CrmArchive;
 use Modules\AmeiseModule\Entities\CrmArchiveThread;
-use Modules\AmeiseModule\Jobs\ArchiveThreads;
+use Modules\AmeiseModule\Jobs\ArchiveThreadsJob;
 
-class ArchiveThreadsJob extends Command {
-   /**
+class ArchiveThreads extends Command
+{
+    /**
      * The name and signature of the console command.
      *
      * @var string
@@ -21,12 +23,10 @@ class ArchiveThreadsJob extends Command {
      *
      * @var string
      */
-    protected $description = 'Run commands to archive threads';
+    protected $description = 'Archiviere neue Threads ins CRM für alle Nutzer, die die Konversation archiviert haben';
 
     /**
      * Create a new command instance.
-     *
-     * @return void
      */
     public function __construct()
     {
@@ -35,31 +35,33 @@ class ArchiveThreadsJob extends Command {
 
     /**
      * Execute the console command.
-     *
-     * @return mixed
      */
     public function handle()
     {
-      config('ameisemodule.ameise_log_status') && \Helper::log('Ameise Cron Log', 'Cron Job Started');
+        // IDs aller archivierten Konversationen
+        $conversationIds = CrmArchiveThread::distinct()->pluck('conversation_id')->toArray();
+        // IDs aller Threads, die bereits archiviert wurden
+        $threadIds = CrmArchiveThread::distinct()->pluck('thread_id')->toArray();
 
-      $crmArchiveThreads = CrmArchiveThread::where('created_at','>=', now()->subDays(60))
-      ->get();
-      $convesation_ids = $crmArchiveThreads->pluck('conversation_id')->toArray();
-      $thread_ids = $crmArchiveThreads->pluck('thread_id')->toArray();
-      $threads = Thread::where('threads.created_at', '>=', now()->subDays(60))
-      ->where('type', '!=', Thread::TYPE_NOTE)
-      ->where('state', Thread::STATE_PUBLISHED)
-        ->whereNotIn('threads.id', $thread_ids)
-        ->whereIn('threads.conversation_id', $convesation_ids)
-        ->with(['conversation', 'attachments'])->get();
-      foreach ($threads as $thread) {
-        $archives = CrmArchive::where('conversation_id', $thread->conversation_id)
-        ->groupBy('archived_by')->pluck('archived_by')->toArray();
-        $users = User::whereIn('id', $archives)->get();
-        foreach ($users as $user) {
-          ArchiveThreadsJob::dispatch($thread->conversation, $thread, $user);
+        $threads = Thread::select('threads.*')
+            ->where('state', Thread::STATE_PUBLISHED)
+            ->whereNotIn('threads.id', $threadIds)
+            ->whereIn('threads.conversation_id', $conversationIds)
+            ->with(['conversation', 'attachments'])
+            ->get();
+
+        foreach ($threads as $thread) {
+            $archives = CrmArchive::where('conversation_id', $thread->conversation_id)
+                ->groupBy('archived_by')
+                ->pluck('archived_by')
+                ->toArray();
+
+            $users = User::whereIn('id', $archives)->get();
+
+            foreach ($users as $user) {
+                // Dispatch des Jobs
+                ArchiveThreadsJob::dispatch($thread->conversation, $thread, $user);
+            }
         }
-      }
-               
     }
 }
