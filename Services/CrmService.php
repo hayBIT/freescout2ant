@@ -276,7 +276,7 @@ class CrmService
         }
     }
 
-    public function fetchUserByEamil($email)
+    public function fetchUserByEmail($email)
     {
         try {
             $result = $this->getAccessToken();
@@ -286,14 +286,13 @@ class CrmService
             // Make an API request using the access token
             $client = new Client();
             $this->amesieLogStatus && \Helper::log('fetch_user_email', 'Fetch user by email request with access token: ' . $this->access_token);
-            $body = json_encode([
-                'mail' => $email,
-            ]);
             $response = $client->get($this->base_url . $this->ma . '/kunden/_search', [
                 'headers' => [
                     'Authorization' => 'Bearer ' . $this->access_token,
                 ],
-                'body' => $body
+                'query' => [
+                    'mail' => $email,
+                ]
             ]);
             $this->amesieLogStatus && \Helper::log('fetch_user_email', 'fetch user by email request response status: ' . $response->getStatusCode());
             if ($response->getStatusCode() === 200) {
@@ -504,7 +503,7 @@ class CrmService
                     }
                 }
             } else {
-                $response = $this->fetchUserByEamil($conversation->customer_email);
+                $response = $this->fetchUserByEmail($conversation->customer_email);
                 if (count($response) == 1) {
                     $crm_user_id = $response[0]['Id'];
                     $conversation_data  = $this->createConversationData($conversation, $crm_user_id, [], [], $thread, $user);
