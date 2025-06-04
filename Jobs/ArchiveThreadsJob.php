@@ -36,7 +36,9 @@ class ArchiveThreadsJob implements ShouldQueue
     {
       config('ameisemodule.ameise_log_status') && \Helper::log('Ameise Cron Log', 'Job Dispatched For Thread ID: '.$this->thread->id.' Conversation ID: '.$this->conversation->id.' User ID: '.$this->user->id.'');
 
-      $crmService = new \Modules\AmeiseModule\Services\CrmService('', $this->user->id);
-      $crmService->archiveConversationData($this->conversation, $this->thread, $this->user);
+      $tokenService = new \Modules\AmeiseModule\Services\TokenService('', $this->user->id);
+      $apiClient = new \Modules\AmeiseModule\Services\CrmApiClient($tokenService);
+      $archiver = new \Modules\AmeiseModule\Services\ConversationArchiver($apiClient);
+      $archiver->archiveConversationData($this->conversation, $this->thread, $this->user);
     }
 }

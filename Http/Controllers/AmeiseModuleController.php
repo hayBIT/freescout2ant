@@ -5,11 +5,11 @@ namespace Modules\AmeiseModule\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
-use Modules\AmeiseModule\Services\CrmService;
+use Modules\AmeiseModule\Services\TokenService;
 
 class AmeiseModuleController extends Controller
 {
-    protected $crmService;
+    protected $tokenService;
     /**
      * Display a listing of the resource.
      * @return Response
@@ -17,8 +17,8 @@ class AmeiseModuleController extends Controller
 
     public function auth(Request $request){
         if ($request->has('code')) {
-            $this->crmService = $this->crmService ?? new CrmService($request->get('code'), auth()->user()->id);
-            $this->crmService->getAccessToken();
+            $this->tokenService = $this->tokenService ?? new TokenService($request->get('code'), auth()->user()->id);
+            $this->tokenService->getAccessToken();
         }
         if(session()->has('redirect_back')){
             $url = session()->get('redirect_back');

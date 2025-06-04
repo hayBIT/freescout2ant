@@ -58,8 +58,8 @@ class AmeiseModuleServiceProvider extends ServiceProvider
     public function hooks()
     {
         Eventy::addAction('conversation.action_buttons', function () {
-            $crmService = new \Modules\AmeiseModule\Services\CrmService('', auth()->user()->id);
-            $url = $crmService->getAuthURl();
+            $tokenService = new \Modules\AmeiseModule\Services\TokenService('', auth()->user()->id);
+            $url = $tokenService->getAuthUrl();
             echo View::make('ameise::partials/conversation_button', ['url' => $url])->render();
         }, 10, 2);
 
@@ -78,8 +78,10 @@ class AmeiseModuleServiceProvider extends ServiceProvider
             }
             $filePath = storage_path("user_" . $user->id . "_ant.txt");
             if (file_exists($filePath)) {
-                $crmService = new \Modules\AmeiseModule\Services\CrmService('', $user->id);
-                $crmService->archiveConversationData($conversation);
+                $tokenService = new \Modules\AmeiseModule\Services\TokenService('', $user->id);
+                $apiClient = new \Modules\AmeiseModule\Services\CrmApiClient($tokenService);
+                $archiver = new \Modules\AmeiseModule\Services\ConversationArchiver($apiClient);
+                $archiver->archiveConversationData($conversation);
             }
 
         });
@@ -90,8 +92,10 @@ class AmeiseModuleServiceProvider extends ServiceProvider
             }
             $filePath = storage_path("user_" . $user->id . "_ant.txt");
             if (file_exists($filePath)) {
-                $crmService = new \Modules\AmeiseModule\Services\CrmService('', $user->id);
-                $crmService->archiveConversationData($conversation);
+                $tokenService = new \Modules\AmeiseModule\Services\TokenService('', $user->id);
+                $apiClient = new \Modules\AmeiseModule\Services\CrmApiClient($tokenService);
+                $archiver = new \Modules\AmeiseModule\Services\ConversationArchiver($apiClient);
+                $archiver->archiveConversationData($conversation);
             }
         });
         $this->registerSettings();
