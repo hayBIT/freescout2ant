@@ -50,7 +50,7 @@ $(document).ready(function() {
             attr('href', `${ameise_base_url}maklerportal/?show=kunde&kunde=${selectedObject.id}`);
             archive_btn.show();
             $("#contract-tag-dropdown, #division-tag-dropdown").show();
-            mangeContractSelects();
+            manageContractSelects();
         });
     });
 
@@ -171,7 +171,7 @@ $(document).ready(function() {
         });
     });
 
-    function mangeContractSelects() {
+    function manageContractSelects() {
         $('#contract-tag-dropdown, #division-tag-dropdown').select2({
             placeholder: 'Select options',
             width: '350px',
