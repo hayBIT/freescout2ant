@@ -190,6 +190,8 @@ class CrmApiClient
             $this->amesieLogStatus && \Helper::log('contracts_end_points', 'get contract end points  request has been completed.');
             return [];
         } catch (Exception $e) {
+            $body = $e->hasResponse() ? (string) $e->getResponse()->getBody() : '';
+            $this->amesieLogStatus && \Helper::log('conversation_archive', 'Error body: ' . $body);
             $this->amesieLogStatus && \Helper::logException($e, 'conversation_archive');
             if ($e->getCode() === 401) {
                 $this->tokenService->disconnectAmeise();
@@ -231,6 +233,8 @@ class CrmApiClient
                 $this->amesieLogStatus && \Helper::log('conversation_archive', 'Error response: ' . json_encode($errorResponse));
             }
         } catch (Exception $e) {
+            $body = $e->hasResponse() ? (string) $e->getResponse()->getBody() : '';
+            $this->amesieLogStatus && \Helper::log('conversation_archive', 'Error body: ' . $body);
             $this->amesieLogStatus && \Helper::logException($e, 'conversation_archive');
             if ($e->getCode() === 401) {
                 $this->tokenService->disconnectAmeise();

@@ -55,11 +55,16 @@ class ConversationArchiver
         $userTimezone = $user->timezone;
         if ($allAttachments->count() > 0) {
             foreach ($allAttachments as $attachment) {
+                $path = storage_path("app/attachment/{$attachment['file_dir']}{$attachment['file_name']}");
+                if (!file_exists($path)) {
+                    \Helper::log('conversation_archive', 'Attachment file not found: ' . $path);
+                    continue;
+                }
                 $attachmentData = [
                     'type' => 'dokument',
                     'x-dio-metadaten' => $conversation_data['x-dio-metadaten'],
                     'subject' => $attachment['file_name'],
-                    'body' => file_get_contents(storage_path("app/attachment/{$attachment['file_dir']}{$attachment['file_name']}")),
+                    'body' => file_get_contents($path),
                     'Content-Type' => 'application/pdf; name="freescout.pdf"',
                     'X-Dio-Zuordnungen' => $conversation_data['X-Dio-Zuordnungen'],
                     'X-Dio-Datum' => Carbon::parse($thread->created_at)->setTimezone($userTimezone)->format('Y-m-d\TH:i:s')
