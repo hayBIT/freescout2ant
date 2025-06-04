@@ -4,6 +4,7 @@ namespace Modules\AmeiseModule\Entities;
 
 use Illuminate\Database\Eloquent\Model;
 use App\Conversation;
+use App\Thread;
 
 
 class CrmArchiveThread extends Model
