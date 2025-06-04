@@ -58,7 +58,10 @@ class TokenService
             if ($this->dateTimePassed($tokens->expires_in)) {
                 $this->refresh_token = $tokens->refresh_token;
                 $this->amesieLogStatus && \Helper::log('token_end_point', 'Access token has expired. Creating a new token file.');
-                $this->createTokenFile();
+                $result = $this->createTokenFile();
+                if (isset($result)) {
+                    return $result;
+                }
             }
             $this->amesieLogStatus && \Helper::log('token_end_point', 'Access token retrieved successfully.' . $this->access_token);
             return $this->access_token;
@@ -93,7 +96,7 @@ class TokenService
                 'Authorization' => 'Basic ' . base64_encode($this->clientId . ':' . $this->clientSecret),
             ];
             $client = new Client();
-            if(empty($this->code)){
+            if (empty($this->code) && empty($this->refresh_token)) {
                 return json_encode(['error' => 'redirect', 'url' => $this->getAuthUrl()]);
             }
             $requestData = [
@@ -118,6 +121,9 @@ class TokenService
             $this->amesieLogStatus && \Helper::log('token_generate', 'Token request sent with status code: ' . $response->getStatusCode());
             if ($response->getStatusCode() === 200) {
                 $responseData = json_decode($response->getBody(), true);
+                if (isset($responseData['expires_in'])) {
+                    $responseData['expires_in'] = date('Y-m-d H:i:s', time() + $responseData['expires_in']);
+                }
                 $this->access_token = $responseData['access_token'];
                 $responseData['ma'] = '';
                 $fp = fopen($filePath, 'w');

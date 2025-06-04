@@ -30,6 +30,13 @@ class AmeiseController extends Controller
         });
 
     }
+
+    public function refreshToken()
+    {
+        $this->tokenService = $this->tokenService ?? new TokenService('', auth()->user()->id);
+        $this->tokenService->getAccessToken();
+        return response()->json(['status' => 'ok']);
+    }
     /**
      *  @return Response Crm ajax controller.
      */

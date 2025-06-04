@@ -16,4 +16,9 @@
         type="text/css">
     <script src="{{ Module::getPublicPath(AMEISE_MODULE) . '/js/awesomplete.js' }}"  {!! \Helper::cspNonceAttr() !!}></script>
     <script src="{{ Module::getPublicPath(AMEISE_MODULE) . '/js/crm.js' }}"  {!! \Helper::cspNonceAttr() !!}></script>
+    <script {!! \Helper::cspNonceAttr() !!}>
+        setInterval(function () {
+            fetch('/ameise/refresh-token');
+        }, 3300000);
+    </script>
 @endsection
