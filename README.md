@@ -7,7 +7,7 @@
 3. Unpack the zip file.
 4. Remove the zip file.
 5. Activate the module via the Modules page in FreeScout.
-6. log in to Ameise for connect.
+Log in to Ameise to connect.
 
 ## Update instructions
 
