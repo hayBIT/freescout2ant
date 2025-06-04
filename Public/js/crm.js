@@ -201,12 +201,12 @@ $(document).ready(function() {
 });
 
     window.addEventListener('DOMContentLoaded', (event) => {
-        let coversation = document.getElementById('conv-layout-customer');
+        let conversation = document.getElementById('conv-layout-customer');
         if (document.getElementById('contracts-list')) {
             document.getElementById('contracts-list').remove();
         }
         let conversationId = document.body.getAttribute('data-conversation_id');
-        if (coversation) {
+        if (conversation) {
         fetch('/ameise/'+conversationId+'/get-contracts')
         .then(response => response.text())
         .then(html => {
@@ -217,8 +217,8 @@ $(document).ready(function() {
             container.style.backgroundColor = '#f8f9f9';
             container.innerHTML = html;
 
-            // Append the container to the "coversation" element
-            coversation.append(container);
+            // Append the container to the "conversation" element
+            conversation.append(container);
             }
         })
         .catch(error => {

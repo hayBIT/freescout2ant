@@ -134,13 +134,13 @@ function initializeSelect2(context) {
 initializeSelect2($('#to'));
 
 
-  let coversation = document.getElementById('conv-layout-customer');
+  let conversation = document.getElementById('conv-layout-customer');
   if (document.getElementById('user-panel-list')) {
       document.getElementById('user-panel-list').remove();
   }
 
   function callHtml() {
-      coversation.innerHTML = `<div class="crm-user-panel panel-group accordion accordion-empty" id="user-panel-list">
+      conversation.innerHTML = `<div class="crm-user-panel panel-group accordion accordion-empty" id="user-panel-list">
         <div class="panel panel-default">
             <div class="panel-heading">
                 <h4 class="panel-title">
