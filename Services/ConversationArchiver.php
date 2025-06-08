@@ -60,14 +60,27 @@ class ConversationArchiver
                     \Helper::log('conversation_archive', 'Attachment file not found: ' . $path);
                     continue;
                 }
+                $body = file_get_contents($path);
+                $mimeType = mime_content_type($path);
+                $subject = $attachment['file_name'];
+                if (strpos($mimeType, 'image/') === 0 && extension_loaded('imagick')) {
+                    try {
+                        $img = new \Imagick($path);
+                        $img->setImageFormat('pdf');
+                        $body = $img->getImagesBlob();
+                        $subject = preg_replace('/\.(jpe?g|png)$/i', '', $subject);
+                    } catch (\Exception $e) {
+                        \Helper::log('conversation_archive', 'Failed to convert image to PDF: ' . $e->getMessage());
+                    }
+                }
                 $attachmentData = [
                     'type' => 'dokument',
                     'x-dio-metadaten' => $conversation_data['x-dio-metadaten'],
-                    'subject' => $attachment['file_name'],
-                    'body' => file_get_contents($path),
+                    'subject' => $subject,
+                    'body' => $body,
                     'Content-Type' => 'application/pdf; name="freescout.pdf"',
                     'X-Dio-Zuordnungen' => $conversation_data['X-Dio-Zuordnungen'],
-                    'X-Dio-Datum' => Carbon::parse($thread->created_at)->setTimezone($userTimezone)->format('Y-m-d\TH:i:s')
+                    'X-Dio-Datum' => Carbon::parse($thread->created_at)->setTimezone($userTimezone)->format('Y-m-d\\TH:i:s')
                 ];
                 $this->apiClient->archiveConversation($attachmentData);
             }
