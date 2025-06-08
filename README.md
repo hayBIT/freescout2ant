@@ -19,5 +19,4 @@ Log in to Ameise to connect.
 6. Activate the module via the Modules page in FreeScout.
 
 ## Attachment Handling
-Image attachments are automatically converted to PDF before being archived. The
-attachment subject no longer includes the original file extension.
+Image attachments are automatically converted to PDF before being archived.
