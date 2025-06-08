@@ -98,6 +98,66 @@ class AmeiseModuleServiceProvider extends ServiceProvider
                 $archiver->archiveConversationData($conversation);
             }
         });
+        Eventy::addAction('conversation.user_forwarded_can_undo', function ($conversation, $thread, $forwarded_conversation, $forwarded_thread) {
+            $user = auth()->user();
+            if (!$user) {
+                return;
+            }
+            $filePath = storage_path("user_" . $user->id . "_ant.txt");
+            if (!file_exists($filePath)) {
+                return;
+            }
+
+            $tokenService = new \Modules\AmeiseModule\Services\TokenService('', $user->id);
+            $apiClient = new \Modules\AmeiseModule\Services\CrmApiClient($tokenService);
+            $archiver = new \Modules\AmeiseModule\Services\ConversationArchiver($apiClient);
+
+            $existingArchive = \Modules\AmeiseModule\Entities\CrmArchive::where('conversation_id', $conversation->id)
+                ->where('archived_by', $user->id)
+                ->first();
+            if ($existingArchive) {
+                \Modules\AmeiseModule\Entities\CrmArchive::create([
+                    'crm_user_id'    => $existingArchive->crm_user_id,
+                    'crm_user'       => $existingArchive->crm_user,
+                    'contracts'      => $existingArchive->contracts,
+                    'divisions'      => $existingArchive->divisions,
+                    'conversation_id'=> $forwarded_conversation->id,
+                    'archived_by'    => $user->id,
+                ]);
+            }
+
+            $archiver->archiveConversationData($forwarded_conversation, $forwarded_thread, $user);
+        }, 10, 4);
+        Eventy::addAction('conversation.user_forwarded', function ($conversation, $thread, $forwarded_conversation, $forwarded_thread) {
+            $user = auth()->user();
+            if (!$user) {
+                return;
+            }
+            $filePath = storage_path("user_" . $user->id . "_ant.txt");
+            if (!file_exists($filePath)) {
+                return;
+            }
+
+            $tokenService = new \Modules\AmeiseModule\Services\TokenService('', $user->id);
+            $apiClient = new \Modules\AmeiseModule\Services\CrmApiClient($tokenService);
+            $archiver = new \Modules\AmeiseModule\Services\ConversationArchiver($apiClient);
+
+            $existingArchive = \Modules\AmeiseModule\Entities\CrmArchive::where('conversation_id', $conversation->id)
+                ->where('archived_by', $user->id)
+                ->first();
+            if ($existingArchive) {
+                \Modules\AmeiseModule\Entities\CrmArchive::create([
+                    'crm_user_id'    => $existingArchive->crm_user_id,
+                    'crm_user'       => $existingArchive->crm_user,
+                    'contracts'      => $existingArchive->contracts,
+                    'divisions'      => $existingArchive->divisions,
+                    'conversation_id'=> $forwarded_conversation->id,
+                    'archived_by'    => $user->id,
+                ]);
+            }
+
+            $archiver->archiveConversationData($forwarded_conversation, $forwarded_thread, $user);
+        }, 10, 4);
         $this->registerSettings();
     }
 
