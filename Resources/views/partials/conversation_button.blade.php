@@ -1,10 +1,12 @@
 @if (file_exists(storage_path('user_' . auth()->user()->id . '_ant.txt')))
-    <a href="#" data-toggle="modal" data-target="#ameise-modal" title="{{ __('Add to Ameise') }}" aria-label="{{ __('Add to Ameise') }}"> <span class="ameise-logo active">{!! file_get_contents(Module::getPublicPath(AMEISE_MODULE)."/images/ameise_icon_bold.svg") !!}</span></a>
+    <a href="#" data-toggle="modal" data-target="#ameise-modal" title="{{ __('Add to Ameise') }}" aria-label="{{ __('Add to Ameise') }}"> <img class="ameise-logo" alt="logo"
+        src="{{ Module::getPublicPath(AMEISE_MODULE) . '/images/ameise_icon_bold.svg' }}"></a>
 @else
     @php
         session(['redirect_back' => url()->current()]);
     @endphp
-    <a href="{{$url}}" title="{{ __('Connect to Ameise') }}" aria-label="{{ __('Connect to Ameise') }}"> <span class="ameise-logo inactive">{!! file_get_contents(Module::getPublicPath(AMEISE_MODULE)."/images/ameise_icon_bold.svg") !!}</span></a>
+    <a href="{{$url}}" title="{{ __('Connect to Ameise') }}" aria-label="{{ __('Connect to Ameise') }}"> <img class="ameise-logo" alt="logo"
+    src="{{ Module::getPublicPath(AMEISE_MODULE) . '/images/ameise_icon_bold.svg' }}"></a>
 @endif
 <link href="{{ asset(Module::getPublicPath(AMEISE_MODULE) . '/css/style.css') }}" rel="stylesheet" type="text/css">
 <input type="hidden" id="ameise_base_url" value="{{ (config('ameisemodule.ameise_mode') == 'test' ? 'https://maklerinfo.inte.dionera.dev/' : 'https://www.maklerinfo.biz/') }}">
