@@ -3,12 +3,6 @@
     height: auto;
     margin-bottom: 7px;
 }
-.ameise-logo.active{
-    background-color: #6ac27b;
-}
-.ameise-logo.inactive{
-    background-color: red;
-}
 .conversation-archives:not(:last-child){
     border-bottom:1px solid #ddd;margin:0 0 10px 0; padding-bottom:8px;
 }
