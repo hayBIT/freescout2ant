@@ -17,7 +17,7 @@ $(document).ready(function() {
                     headers: {
                         "Content-Type": "application/x-www-form-urlencoded",
                     },
-                    body: `search=${inputValue}&action=crm_users_search&_token=${csrfToken}`,
+                    body: `search=${encodeURIComponent(inputValue)}&action=crm_users_search&_token=${encodeURIComponent(csrfToken)}`,
                 })
             .then(response => response.json())
             .then(data => {
@@ -131,7 +131,7 @@ $(document).ready(function() {
         let csrfToken = $('meta[name="csrf-token"]').attr('content');
         formData += '&_token=' + encodeURIComponent(csrfToken);
         formData += '&conversation_id=' + conversationId;
-        formData += '&crm_user_data=' + JSON.stringify(crm_user);
+        formData += '&crm_user_data=' + encodeURIComponent(JSON.stringify(crm_user));
         formData += '&action=' + 'crm_conversation_archive';
 
         let combinedData = formData;

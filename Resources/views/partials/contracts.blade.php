@@ -15,7 +15,28 @@
                         @foreach ($archives as $archive)
                             @php
                                 // Sicherstellen, dass crm_user decodiert werden kann
-                                $user = $archive->crm_user ? json_decode($archive->crm_user, true) : [];
+                                $user = [];
+                                $malformed = false;
+                                if ($archive->crm_user) {
+                                    $decoded = json_decode($archive->crm_user, true);
+                                    if (json_last_error() !== JSON_ERROR_NONE) {
+                                        $decoded = json_decode(urldecode($archive->crm_user), true);
+                                        $malformed = true;
+                                    }
+                                    if (!$decoded && preg_match('/"text"\s*:\s*"([^"]*)/', $archive->crm_user, $m)) {
+                                        $decoded = ['id' => $archive->crm_user_id, 'text' => $m[1]];
+                                        $malformed = true;
+                                    }
+                                    $user = is_array($decoded) ? $decoded : [];
+                                }
+                                if (empty($user) || $malformed) {
+                                    $tokenService = new \Modules\AmeiseModule\Services\TokenService('', auth()->user()->id);
+                                    $client = new \Modules\AmeiseModule\Services\CrmApiClient($tokenService);
+                                    $resp = $client->fetchUserByIdOrName($archive->crm_user_id);
+                                    if (is_array($resp) && count($resp) > 0) {
+                                        $user = ['id' => $resp[0]['Id'], 'text' => $resp[0]['Text']];
+                                    }
+                                }
                             @endphp
 
                             <div class="conversation-archives">
