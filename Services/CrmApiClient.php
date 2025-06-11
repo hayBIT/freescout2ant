@@ -32,7 +32,8 @@ class CrmApiClient
             }
             $client = new Client();
             $this->amesieLogStatus && \Helper::log('fetch_user_id_name', 'Sending a user search request by id and name with access token: ' . $this->getAccessToken());
-            $response = $client->get($this->base_url . $this->tokenService->getMa() . '/kunden/_search?q=' . $data, [
+            $searchQuery = rawurlencode($data);
+            $response = $client->get($this->base_url . $this->tokenService->getMa() . '/kunden/_search?q=' . $searchQuery, [
                 'headers' => [
                     'Authorization' => 'Bearer ' . $this->getAccessToken(),
                 ],
