@@ -8,7 +8,9 @@ return [
     'ameise_state' => env('AMEISE_STATE', 'freescout'),
     'ameise_scope' => env('AMEISE_SCOPE', 'ameise/mitarbeiterwebservice offline'),
     'ameise_redirect_uri' => env('AMEISE_REDIRECT_URI', '/crm/auth'),
-    'ameise_log_status' => env('AMEISE_LOG_STATUS', true),
+    // Verbose logging can quickly grow the FreeScout activity_logs table.
+    // Disable by default and allow opt-in via AMEISE_LOG_STATUS=true.
+    'ameise_log_status' => env('AMEISE_LOG_STATUS', false),
 
 ];
 
