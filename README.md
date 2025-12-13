@@ -18,5 +18,10 @@ Log in to Ameise to connect.
 5. Remove the zip file.
 6. Activate the module via the Modules page in FreeScout.
 
+## Logging
+Verbose module logs (including Cron-Logeinträge) are disabled by default to avoid
+ein übermäßiges Wachstum der `activity_logs`-Tabelle. Bei Bedarf können Sie sie
+über die Umgebungsvariable `AMEISE_LOG_STATUS=true` wieder aktivieren.
+
 ## Attachment Handling
 Image attachments are automatically converted to PDF before being archived.
