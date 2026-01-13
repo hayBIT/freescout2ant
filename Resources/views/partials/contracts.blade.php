@@ -3,7 +3,7 @@
     <div class="panel panel-default">
         <div class="panel-heading">
             <h4 class="panel-title">
-                <a data-toggle="collapse" href=".collapse-conv-ameise">{{ __('Ameise Contracts') }}
+                <a data-toggle="collapse" href=".collapse-conv-ameise">{{ __('Ameise Archivierungen') }}
                     <b class="caret"></b>
                 </a>
             </h4>
