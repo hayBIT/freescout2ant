@@ -79,7 +79,7 @@ class ConversationArchiver
                         $img = new \Imagick($path);
                         $img->setImageFormat('pdf');
                         $body = $img->getImagesBlob();
-                        $subject = preg_replace('/\.(jpe?g|png)$/i', '', $subject);
+                        $subject = pathinfo($subject, PATHINFO_FILENAME) . '.pdf';
                     } catch (\Exception $e) {
                         \Helper::log('conversation_archive', 'Failed to convert image to PDF: ' . $e->getMessage());
                     }
