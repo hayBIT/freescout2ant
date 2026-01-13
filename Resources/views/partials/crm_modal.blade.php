@@ -3,7 +3,7 @@
       <div class="modal-content">
           <div class="modal-header">
               <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-              <h4 class="modal-title">{{ __('Add to ameise') }}</h4>
+              <h4 class="modal-title">{{ __('In Ameise archivieren') }}</h4>
           </div>
           <div class="modal-body">
 <form id="crm_user_form">
@@ -32,8 +32,8 @@
   </form>
 </div>
 <div class="modal-footer">
-  <button type="button" class="btn btn-default" data-dismiss="modal">{{ __('Cancel') }}</button>
-  <button type="button" class="btn btn-primary" id="archive_btn" style="display: none;">{{ __('Archive') }}</button>
+  <button type="button" class="btn btn-default" data-dismiss="modal">{{ __('Abbrechen') }}</button>
+  <button type="button" class="btn btn-primary" id="archive_btn" style="display: none;">{{ __('Archivieren') }}</button>
 </div>
 </div>
 </div>
