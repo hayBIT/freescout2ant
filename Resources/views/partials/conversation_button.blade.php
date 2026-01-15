@@ -1,5 +1,5 @@
 @if (file_exists(storage_path('user_' . auth()->user()->id . '_ant.txt')))
-    <a href="#" data-toggle="modal" data-target="#ameise-modal" title="{{ __('In Ameise archivieren') }}" aria-label="{{ __('In Ameise archivieren) }}"> <img class="ameise-logo" alt="logo"
+    <a href="#" data-toggle="modal" data-target="#ameise-modal" title="{{ __('In Ameise archivieren') }}" aria-label="{{ __('In Ameise archivieren') }}"> <img class="ameise-logo" alt="logo"
         src="{{ Module::getPublicPath(AMEISE_MODULE) . '/images/ameise_icon_bold_green.svg' }}"></a>
 @else
     @php
