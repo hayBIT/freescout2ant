@@ -35,13 +35,13 @@ class ConversationArchiver
 
         $body = $thread->body ?? '';
         $body = html_entity_decode($body, ENT_QUOTES | ENT_HTML5);
-        $body = html_entity_decode($body, ENT_QUOTES | ENT_HTML5);
         $body = str_replace(['<li>', '</li>'], ["\n- ", ''], $body);
         $body = preg_replace('/<br\s*\/?\s*>/i', "\n", $body);
         $body = preg_replace('/<\/p>\s*<p>/i', "\n\n", $body);
         $body = preg_replace('/<\/div>\s*<div>/i', "\n\n", $body);
         $body = preg_replace('/<\/(p|div)>/i', "\n", $body);
         $body = strip_tags($body);
+        $body = preg_replace('/\x{00A0}/u', ' ', $body);
         $body = preg_replace("/\r\n|\r|\n/", "\r\n", $body);
         
         return [
