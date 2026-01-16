@@ -42,7 +42,9 @@ class ConversationArchiver
         $body = preg_replace('/<\/(p|div)>/i', "\n", $body);
         $body = strip_tags($body);
         $body = preg_replace('/\x{00A0}/u', ' ', $body);
-        $body = preg_replace("/\r\n|\r|\n/", "\r\n", $body);
+        $body = preg_replace("/\r\n|\r/", "\n", $body);
+        $body = preg_replace("/\n{3,}/", "\n\n", $body);
+        $body = str_replace("\n", "\r\n", $body);
         
         return [
             'type' =>  ($conversation->type == Conversation::TYPE_EMAIL) ? 'email' : 'telefon',
