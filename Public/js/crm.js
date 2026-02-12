@@ -172,8 +172,21 @@ $(document).ready(function() {
     });
 
     function manageContractSelects() {
-        $('#contract-tag-dropdown, #division-tag-dropdown').select2({
-            placeholder: 'Select options',
+        $('#contract-tag-dropdown').select2({
+            placeholder: 'Verträge',
+            width: '350px',
+            tokenSeparators: [',', ' '],
+            createTag: function(params) {
+                return {
+                    id: params.term,
+                    text: params.term,
+                    newTag: true
+                };
+            },
+        });
+
+        $('#division-tag-dropdown').select2({
+            placeholder: 'Sparten',
             width: '350px',
             tokenSeparators: [',', ' '],
             createTag: function(params) {
