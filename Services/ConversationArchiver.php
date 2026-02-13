@@ -17,6 +17,26 @@ class ConversationArchiver
         $this->apiClient = $apiClient;
     }
 
+    public function shouldArchiveThread($conversation, $thread)
+    {
+        if ($thread->type !== Thread::TYPE_NOTE) {
+            return true;
+        }
+
+        if ($conversation->type != Conversation::TYPE_PHONE) {
+            return false;
+        }
+
+        return $this->isFirstConversationThread($conversation, $thread);
+    }
+
+    private function isFirstConversationThread($conversation, $thread)
+    {
+        $firstThreadId = Thread::where('conversation_id', $conversation->id)->orderBy('id', 'asc')->value('id');
+
+        return !is_null($firstThreadId) && (int) $thread->id === (int) $firstThreadId;
+    }
+
     public function createConversationData($conversation, $crm_user_id, $contracts, $divisions, $thread, $user = null)
     {
         $user = $user ?? auth()->user();
@@ -104,7 +124,7 @@ class ConversationArchiver
     {
         $thread =  $thread ?? $conversation->getLastThread();
         $user = $user ?? auth()->user();
-        if($thread->type != Thread::TYPE_NOTE){
+        if ($this->shouldArchiveThread($conversation, $thread)) {
             $crmArchives = CrmArchive::where('conversation_id', $conversation->id)->get();
             if (count($crmArchives) > 0) {
                 foreach ($crmArchives as $crmArchive) {
