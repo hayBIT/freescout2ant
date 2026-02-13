@@ -95,7 +95,7 @@ class AmeiseController extends Controller
                 foreach($conversation->threads as $thread) {
                     $isArchiveThread = CrmArchiveThread::where('crm_archive_id', $crm_archive->id)->where('thread_id',$thread->id)->first();
                     if(!$isArchiveThread){
-                        if($thread->type != Thread::TYPE_NOTE) {
+                        if ($this->archiver->shouldArchiveThread($conversation, $thread)) {
                             $crm_user_id = $inputs['customer_id'];
                             $contracts = json_decode($inputs['contracts'], true);
                             $divisions = json_decode($inputs['divisions_data'], true);
