@@ -7,6 +7,8 @@ use GuzzleHttp\Exception\ClientException as Exception;
 
 class TokenService
 {
+    private const TOKEN_EXPIRY_SAFETY_BUFFER = 120;
+
     private $fileName = '_ant.txt';
     private $access_token;
     private $refresh_token;
@@ -48,6 +50,14 @@ class TokenService
                 }
             }
             $tokens = json_decode(file_get_contents(storage_path($this->file)));
+            if (!$tokens || empty($tokens->access_token) || empty($tokens->expires_in)) {
+                $this->amesieLogStatus && \Helper::log('token_end_point', 'Token file is invalid or incomplete. Requesting a new token file.');
+                $result = $this->createTokenFile();
+                if (isset($result)) {
+                    return $result;
+                }
+                $tokens = json_decode(file_get_contents(storage_path($this->file)));
+            }
             $this->access_token = $tokens->access_token;
             if (!empty($tokens->ma)) {
                 $this->ma = $tokens->ma;
@@ -55,13 +65,15 @@ class TokenService
                 $this->amesieLogStatus && \Helper::log('user_info', 'User info missing. Calling userInfo to retrieve it.');
                 $this->userInfo();
             }
-            if ($this->dateTimePassed($tokens->expires_in)) {
-                $this->refresh_token = $tokens->refresh_token;
-                $this->amesieLogStatus && \Helper::log('token_end_point', 'Access token has expired. Creating a new token file.');
+            if ($this->dateTimePassed($tokens->expires_in, self::TOKEN_EXPIRY_SAFETY_BUFFER)) {
+                $this->refresh_token = $tokens->refresh_token ?? '';
+                $this->amesieLogStatus && \Helper::log('token_end_point', 'Access token is expired or about to expire. Refreshing token.');
                 $result = $this->createTokenFile();
                 if (isset($result)) {
                     return $result;
                 }
+                $tokens = json_decode(file_get_contents(storage_path($this->file)));
+                $this->access_token = $tokens->access_token ?? '';
             }
             $this->amesieLogStatus && \Helper::log('token_end_point', 'Access token retrieved successfully.' . $this->access_token);
             return $this->access_token;
@@ -80,9 +92,9 @@ class TokenService
         return false;
     }
 
-    private function dateTimePassed(string $dt_to_check): bool
+    private function dateTimePassed(string $dt_to_check, int $bufferSeconds = 0): bool
     {
-        $dt1 = strtotime(date('Y-m-d H:i:s', strtotime($dt_to_check)));
+        $dt1 = strtotime(date('Y-m-d H:i:s', strtotime($dt_to_check))) - $bufferSeconds;
         $dt2 = strtotime(date('Y-m-d H:i:s'));
         return $dt1 < $dt2;
     }
@@ -138,6 +150,11 @@ class TokenService
                 $this->amesieLogStatus && \Helper::log('token_generate', 'Error response:' . json_encode($errorResponse));
             }
         } catch (Exception $e) {
+            if ($this->refreshRequestRequiresReauthentication($e)) {
+                $this->amesieLogStatus && \Helper::log('token_generate', 'Refresh token is no longer valid. New authentication is required.');
+                $this->disconnectAmeise();
+                return json_encode(['error' => 'redirect', 'url' => $this->getAuthUrl()]);
+            }
             $this->amesieLogStatus && \Helper::logException($e, 'token_generate');
         }
     }
@@ -173,9 +190,42 @@ class TokenService
         } catch (Exception $e) {
             $this->amesieLogStatus && \Helper::logException($e, 'user_info');
             if ($e->getCode() === 401) {
-                $this->disconnectAmeise();
+                $this->amesieLogStatus && \Helper::log('user_info', 'Received unauthorized while loading user info. Trying token refresh.');
+                if (!$this->refreshAccessTokenFromFile()) {
+                    $this->disconnectAmeise();
+                }
             }
         }
+    }
+
+    private function refreshRequestRequiresReauthentication(Exception $e): bool
+    {
+        if (!$e->hasResponse()) {
+            return false;
+        }
+
+        $responseData = json_decode((string) $e->getResponse()->getBody(), true);
+        $error = $responseData['error'] ?? null;
+
+        return in_array($error, ['invalid_grant', 'invalid_token', 'unauthorized_client'], true);
+    }
+
+    private function refreshAccessTokenFromFile(): bool
+    {
+        $filePath = storage_path($this->file);
+        if (!file_exists($filePath)) {
+            return false;
+        }
+
+        $tokens = json_decode(file_get_contents($filePath));
+        if (empty($tokens->refresh_token)) {
+            return false;
+        }
+
+        $this->refresh_token = $tokens->refresh_token;
+        $result = $this->createTokenFile();
+
+        return empty($result);
     }
 
     public function getMa()
