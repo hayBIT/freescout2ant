@@ -3,7 +3,7 @@
 namespace Modules\AmeiseModule\Services;
 
 use GuzzleHttp\Client;
-use GuzzleHttp\Exception\ClientException as Exception;
+use GuzzleHttp\Exception\RequestException as Exception;
 
 class CrmApiClient
 {
