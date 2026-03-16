@@ -10,12 +10,7 @@ use Config;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\Event;
 use Modules\AmeiseModule\Console\Commands\ArchiveThreads;
-use Modules\AmeiseModule\Entities\CrmArchive;
-use Modules\AmeiseModule\Services\TokenService;
-use Modules\AmeiseModule\Services\CrmApiClient;
-use Modules\AmeiseModule\Services\ConversationArchiver;
-
-define('AMEISE_MODULE', 'ameisemodule');
+defined('AMEISE_MODULE') || define('AMEISE_MODULE', 'ameisemodule');
 
 class AmeiseModuleServiceProvider extends ServiceProvider
 {
@@ -89,9 +84,9 @@ class AmeiseModuleServiceProvider extends ServiceProvider
 
     private function createArchiver($userId)
     {
-        $tokenService = new TokenService('', $userId);
-        $apiClient = new CrmApiClient($tokenService);
-        return new ConversationArchiver($apiClient);
+        $tokenService = new \Modules\AmeiseModule\Services\TokenService('', $userId);
+        $apiClient = new \Modules\AmeiseModule\Services\CrmApiClient($tokenService);
+        return new \Modules\AmeiseModule\Services\ConversationArchiver($apiClient);
     }
 
     private function archiveIfConnected($conversation)
@@ -110,11 +105,11 @@ class AmeiseModuleServiceProvider extends ServiceProvider
             return;
         }
 
-        $existingArchive = CrmArchive::where('conversation_id', $conversation->id)
+        $existingArchive = \Modules\AmeiseModule\Entities\CrmArchive::where('conversation_id', $conversation->id)
             ->where('archived_by', $user->id)
             ->first();
         if ($existingArchive) {
-            CrmArchive::create([
+            \Modules\AmeiseModule\Entities\CrmArchive::create([
                 'crm_user_id'    => $existingArchive->crm_user_id,
                 'crm_user'       => $existingArchive->crm_user,
                 'contracts'      => $existingArchive->contracts,
