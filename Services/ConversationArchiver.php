@@ -120,6 +120,11 @@ class ConversationArchiver
         }
     }
 
+    public function isScanOnly($conversation)
+    {
+        return stripos($conversation->subject ?? '', '#scanonly') !== false;
+    }
+
     public function archiveConversationData($conversation, $thread = null, $user = null)
     {
         $thread =  $thread ?? $conversation->getLastThread();
@@ -133,7 +138,9 @@ class ConversationArchiver
                         $contracts = !empty($crmArchive->contracts) ? json_decode($crmArchive->contracts, true) : [];
                         $divisions = !empty($crmArchive->divisions) ? json_decode($crmArchive->divisions, true) : [];
                         $conversation_data = $this->createConversationData($conversation, $crmArchive->crm_user_id, $contracts, $divisions, $thread, $user);
-                        if($this->apiClient->archiveConversation($conversation_data)) {
+                        $scanOnly = $this->isScanOnly($conversation);
+                        $archived = $scanOnly ? true : $this->apiClient->archiveConversation($conversation_data);
+                        if($archived) {
                             $this->archiveConversationWithAttachments($thread, $conversation_data, $user);
                             CrmArchiveThread::create(['crm_archive_id' => $crmArchive->id,'thread_id' => $thread->id,'conversation_id'=> $conversation->id ]);
                         }
@@ -144,7 +151,9 @@ class ConversationArchiver
                 if (count($response) == 1) {
                     $crm_user_id = $response[0]['Id'];
                     $conversation_data  = $this->createConversationData($conversation, $crm_user_id, [], [], $thread, $user);
-                    if($this->apiClient->archiveConversation($conversation_data)) {
+                    $scanOnly = $this->isScanOnly($conversation);
+                    $archived = $scanOnly ? true : $this->apiClient->archiveConversation($conversation_data);
+                    if($archived) {
                         $this->archiveConversationWithAttachments($thread, $conversation_data, $user);
                         $crm_archive = CrmArchive::firstOrNew(['conversation_id' => $conversation->id, 'crm_user_id' => $crm_user_id,'archived_by' => $user->id]);
                         $crm_archive->crm_user = json_encode(['id' => $crm_user_id, 'text' => $response[0]['Text']]);
