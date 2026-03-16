@@ -25,3 +25,8 @@ ein übermäßiges Wachstum der `activity_logs`-Tabelle. Bei Bedarf können Sie 
 
 ## Attachment Handling
 Image attachments are automatically converted to PDF before being archived.
+
+## Scan Only Modus
+Wenn der Betreff einer E-Mail `#scanonly` enthält, werden nur die Anhänge archiviert –
+die E-Mail selbst wird nicht an Ameise übertragen. Die Erkennung ist case-insensitive
+(`#scanonly`, `#SCANONLY`, `#ScanOnly` etc.).
