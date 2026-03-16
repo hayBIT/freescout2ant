@@ -34,13 +34,14 @@ class CrmApiClient
         return null;
     }
 
-    private function apiGet($url, $logContext, array $options = [], $errorReturn = [])
+    private function apiGet($path, $logContext, array $options = [], $errorReturn = [], $useBaseOnly = false)
     {
         try {
             $tokenError = $this->checkTokenError();
             if ($tokenError) {
                 return $tokenError;
             }
+            $url = $useBaseOnly ? $this->base_url . $path : $this->maUrl($path);
             $this->amesieLogStatus && \Helper::log($logContext, 'Sending GET request to: ' . $url);
             $requestOptions = array_merge([
                 'headers' => [
@@ -82,7 +83,7 @@ class CrmApiClient
     {
         $searchQuery = rawurlencode($data);
         return $this->apiGet(
-            $this->maUrl('kunden/_search?q=' . $searchQuery),
+            'kunden/_search?q=' . $searchQuery,
             'fetch_user_id_name'
         );
     }
@@ -90,7 +91,7 @@ class CrmApiClient
     public function fetchUserDetail($id, $endPoints)
     {
         return $this->apiGet(
-            $this->maUrl('kunden/' . $id . '/' . $endPoints),
+            'kunden/' . $id . '/' . $endPoints,
             'user_end_points'
         );
     }
@@ -98,7 +99,7 @@ class CrmApiClient
     public function fetchUserByEmail($email)
     {
         return $this->apiGet(
-            $this->maUrl('kunden/_search'),
+            'kunden/_search',
             'fetch_user_email',
             ['query' => ['mail' => $email]]
         );
@@ -107,7 +108,7 @@ class CrmApiClient
     public function getContracts($customerId)
     {
         return $this->apiGet(
-            $this->maUrl('kunden/' . $customerId . '/vertraege'),
+            'kunden/' . $customerId . '/vertraege',
             'get_contracts',
             [],
             ['error' => 'redirect', 'url' => $this->tokenService->getAuthUrl()]
@@ -117,8 +118,11 @@ class CrmApiClient
     public function getContactEndPoints($end_points)
     {
         return $this->apiGet(
-            $this->base_url . $end_points,
-            'contracts_end_points'
+            $end_points,
+            'contracts_end_points',
+            [],
+            [],
+            true
         );
     }
 
