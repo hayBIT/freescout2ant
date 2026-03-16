@@ -10,6 +10,10 @@ use Config;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\Event;
 use Modules\AmeiseModule\Console\Commands\ArchiveThreads;
+use Modules\AmeiseModule\Entities\CrmArchive;
+use Modules\AmeiseModule\Services\TokenService;
+use Modules\AmeiseModule\Services\CrmApiClient;
+use Modules\AmeiseModule\Services\ConversationArchiver;
 
 define('AMEISE_MODULE', 'ameisemodule');
 
@@ -32,21 +36,12 @@ class AmeiseModuleServiceProvider extends ServiceProvider
         $this->registerConfig();
         $this->registerViews();
         $this->registerFactories();
-        $viewPath = resource_path('views/modules/ameisemodule');
-
-        $sourcePath = __DIR__ . '/../Resources/views';
         $this->commands([
             ArchiveThreads::class,
         ]);
-        $this->publishes([
-            $sourcePath => $viewPath,
-        ], 'views');
         $this->loadMigrationsFrom(__DIR__ . '/../Database/Migrations');
-        $this->loadViewsFrom(array_merge(array_map(function ($path) {
-            return $path . '/modules/ameisemodule';
-        }, Config::get('view.paths')), [ $sourcePath ]), 'ameise');
         $this->hooks();
-         // Trigger the scheduling after the application has booted
+        // Trigger the scheduling after the application has booted
         Event::listen('bootstrapped: Illuminate\Foundation\Bootstrap\BootProviders', function () {
             $this->schedule();
         });
@@ -72,95 +67,65 @@ class AmeiseModuleServiceProvider extends ServiceProvider
         }, 10, 2);
 
         Eventy::addAction('conversation.created_by_user_can_undo', function ($conversation) {
-            $user = auth()->user();
-            if (!$user) {
-                return;
-            }
-            $filePath = storage_path("user_" . $user->id . "_ant.txt");
-            if (file_exists($filePath)) {
-                $tokenService = new \Modules\AmeiseModule\Services\TokenService('', $user->id);
-                $apiClient = new \Modules\AmeiseModule\Services\CrmApiClient($tokenService);
-                $archiver = new \Modules\AmeiseModule\Services\ConversationArchiver($apiClient);
-                $archiver->archiveConversationData($conversation);
-            }
-
+            $this->archiveIfConnected($conversation);
         });
         Eventy::addAction('conversation.user_replied_can_undo', function ($conversation) {
-            $user = auth()->user();
-            if (!$user) {
-                return;
-            }
-            $filePath = storage_path("user_" . $user->id . "_ant.txt");
-            if (file_exists($filePath)) {
-                $tokenService = new \Modules\AmeiseModule\Services\TokenService('', $user->id);
-                $apiClient = new \Modules\AmeiseModule\Services\CrmApiClient($tokenService);
-                $archiver = new \Modules\AmeiseModule\Services\ConversationArchiver($apiClient);
-                $archiver->archiveConversationData($conversation);
-            }
+            $this->archiveIfConnected($conversation);
         });
         Eventy::addAction('conversation.user_forwarded_can_undo', function ($conversation, $thread, $forwarded_conversation, $forwarded_thread) {
-            $user = auth()->user();
-            if (!$user) {
-                return;
-            }
-            $filePath = storage_path("user_" . $user->id . "_ant.txt");
-            if (!file_exists($filePath)) {
-                return;
-            }
-
-            $tokenService = new \Modules\AmeiseModule\Services\TokenService('', $user->id);
-            $apiClient = new \Modules\AmeiseModule\Services\CrmApiClient($tokenService);
-            $archiver = new \Modules\AmeiseModule\Services\ConversationArchiver($apiClient);
-
-            $existingArchive = \Modules\AmeiseModule\Entities\CrmArchive::where('conversation_id', $conversation->id)
-                ->where('archived_by', $user->id)
-                ->first();
-            if ($existingArchive) {
-                \Modules\AmeiseModule\Entities\CrmArchive::create([
-                    'crm_user_id'    => $existingArchive->crm_user_id,
-                    'crm_user'       => $existingArchive->crm_user,
-                    'contracts'      => $existingArchive->contracts,
-                    'divisions'      => $existingArchive->divisions,
-                    'conversation_id'=> $forwarded_conversation->id,
-                    'archived_by'    => $user->id,
-                ]);
-            }
-
-            $archiver->archiveConversationData($forwarded_conversation, $forwarded_thread, $user);
+            $this->handleForwardedConversation($conversation, $forwarded_conversation, $forwarded_thread);
         }, 10, 4);
         Eventy::addAction('conversation.user_forwarded', function ($conversation, $thread, $forwarded_conversation, $forwarded_thread) {
-            $user = auth()->user();
-            if (!$user) {
-                return;
-            }
-            $filePath = storage_path("user_" . $user->id . "_ant.txt");
-            if (!file_exists($filePath)) {
-                return;
-            }
-
-            $tokenService = new \Modules\AmeiseModule\Services\TokenService('', $user->id);
-            $apiClient = new \Modules\AmeiseModule\Services\CrmApiClient($tokenService);
-            $archiver = new \Modules\AmeiseModule\Services\ConversationArchiver($apiClient);
-
-            $existingArchive = \Modules\AmeiseModule\Entities\CrmArchive::where('conversation_id', $conversation->id)
-                ->where('archived_by', $user->id)
-                ->first();
-            if ($existingArchive) {
-                \Modules\AmeiseModule\Entities\CrmArchive::create([
-                    'crm_user_id'    => $existingArchive->crm_user_id,
-                    'crm_user'       => $existingArchive->crm_user,
-                    'contracts'      => $existingArchive->contracts,
-                    'divisions'      => $existingArchive->divisions,
-                    'conversation_id'=> $forwarded_conversation->id,
-                    'archived_by'    => $user->id,
-                ]);
-            }
-
-            $archiver->archiveConversationData($forwarded_conversation, $forwarded_thread, $user);
+            $this->handleForwardedConversation($conversation, $forwarded_conversation, $forwarded_thread);
         }, 10, 4);
         $this->registerSettings();
     }
 
+
+    private function isUserConnected($user)
+    {
+        return $user && file_exists(storage_path("user_" . $user->id . "_ant.txt"));
+    }
+
+    private function createArchiver($userId)
+    {
+        $tokenService = new TokenService('', $userId);
+        $apiClient = new CrmApiClient($tokenService);
+        return new ConversationArchiver($apiClient);
+    }
+
+    private function archiveIfConnected($conversation)
+    {
+        $user = auth()->user();
+        if (!$this->isUserConnected($user)) {
+            return;
+        }
+        $this->createArchiver($user->id)->archiveConversationData($conversation);
+    }
+
+    private function handleForwardedConversation($conversation, $forwarded_conversation, $forwarded_thread)
+    {
+        $user = auth()->user();
+        if (!$this->isUserConnected($user)) {
+            return;
+        }
+
+        $existingArchive = CrmArchive::where('conversation_id', $conversation->id)
+            ->where('archived_by', $user->id)
+            ->first();
+        if ($existingArchive) {
+            CrmArchive::create([
+                'crm_user_id'    => $existingArchive->crm_user_id,
+                'crm_user'       => $existingArchive->crm_user,
+                'contracts'      => $existingArchive->contracts,
+                'divisions'      => $existingArchive->divisions,
+                'conversation_id'=> $forwarded_conversation->id,
+                'archived_by'    => $user->id,
+            ]);
+        }
+
+        $this->createArchiver($user->id)->archiveConversationData($forwarded_conversation, $forwarded_thread, $user);
+    }
 
     /**
      * Register settings.
@@ -259,16 +224,18 @@ class AmeiseModuleServiceProvider extends ServiceProvider
     public function registerViews()
     {
         $viewPath = resource_path('views/modules/ameisemodule');
-
         $sourcePath = __DIR__ . '/../Resources/views';
 
         $this->publishes([
-            $sourcePath => $viewPath
+            $sourcePath => $viewPath,
         ], 'views');
 
-        $this->loadViewsFrom(array_merge(array_map(function ($path) {
+        $viewPaths = array_merge(array_map(function ($path) {
             return $path . '/modules/ameisemodule';
-        }, \Config::get('view.paths')), [$sourcePath]), 'ameisemodule');
+        }, \Config::get('view.paths')), [$sourcePath]);
+
+        $this->loadViewsFrom($viewPaths, 'ameisemodule');
+        $this->loadViewsFrom($viewPaths, 'ameise');
     }
 
     /**

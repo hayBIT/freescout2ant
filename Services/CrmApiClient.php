@@ -10,12 +10,14 @@ class CrmApiClient
     private $base_url;
     private $tokenService;
     private $amesieLogStatus;
+    private $client;
 
     public function __construct(TokenService $tokenService)
     {
         $this->tokenService = $tokenService;
         $this->base_url = (config('ameisemodule.ameise_mode') == 'test' ? 'https://mitarbeiterwebservice-maklerinfo.inte.dionera.dev/service/bd/employee/1.0/rest/' : 'https://mitarbeiterwebservice.maklerinfo.biz/service/bd/employee/1.0/rest/');
         $this->amesieLogStatus = config('ameisemodule.ameise_log_status');
+        $this->client = new Client();
     }
 
     private function getAccessToken()
@@ -23,214 +25,132 @@ class CrmApiClient
         return $this->tokenService->getAccessToken();
     }
 
-    public function fetchUserByIdOrName($data)
-    {
-        try {
-            $result = $this->getAccessToken();
-            if ($result && ($resultArray = json_decode($result, true)) && isset($resultArray['error'])) {
-                return $resultArray;
-            }
-            $client = new Client();
-            $this->amesieLogStatus && \Helper::log('fetch_user_id_name', 'Sending a user search request by id and name with access token: ' . $this->getAccessToken());
-            $searchQuery = rawurlencode($data);
-            $response = $client->get($this->base_url . $this->tokenService->getMa() . '/kunden/_search?q=' . $searchQuery, [
-                'headers' => [
-                    'Authorization' => 'Bearer ' . $this->getAccessToken(),
-                ],
-            ]);
-            $this->amesieLogStatus && \Helper::log('fetch_user_id_name', 'User search request by id and name response status is: ' . $response->getStatusCode());
-            if ($response->getStatusCode() === 200) {
-                return json_decode($response->getBody(), true);
-            } elseif ($response->getStatusCode() === 401) {
-                $this->tokenService->disconnectAmeise();
-            } else {
-                $errorResponse = json_decode($response->getBody(), true);
-                $this->amesieLogStatus && \Helper::log('fetch_user_id_name', 'User search request failed with status code: ' . $response->getStatusCode());
-                $this->amesieLogStatus && \Helper::log('fetch_user_id_name', 'Error response: ' . json_encode($errorResponse));
-            }
-            $this->amesieLogStatus && \Helper::log('fetch_user_id_name', 'User search request by id and name has been completed.');
-        } catch (Exception $e) {
-            $this->amesieLogStatus && \Helper::logException($e, 'fetch_user_id_name');
-            if ($e->getCode() === 401) {
-                $this->tokenService->disconnectAmeise();
-            }
-        }
-        return [];
-    }
-
-    public function fetchUserDetail($id, $endPoints)
-    {
-        try {
-            $result = $this->getAccessToken();
-            if ($result && ($resultArray = json_decode($result, true)) && isset($resultArray['error'])) {
-                return $resultArray;
-            }
-            $client = new Client();
-            $this->amesieLogStatus && \Helper::log('user_end_points', 'User end points request with access token: ' . $this->getAccessToken());
-            $response = $client->get($this->base_url . $this->tokenService->getMa() . '/kunden/' . $id . '/' . $endPoints, [
-                'headers' => [
-                    'Authorization' => 'Bearer ' . $this->getAccessToken(),
-                ],
-            ]);
-            $this->amesieLogStatus && \Helper::log('user_end_points', 'User end points request response status: ' . $response->getStatusCode());
-            if ($response->getStatusCode() === 200) {
-                return json_decode($response->getBody(), true);
-            } elseif ($response->getStatusCode() === 401) {
-                $this->tokenService->disconnectAmeise();
-            } else {
-                $errorResponse = json_decode($response->getBody(), true);
-                $this->amesieLogStatus && \Helper::log('user_end_points', 'User end points request failed with status code: ' . $response->getStatusCode());
-                $this->amesieLogStatus && \Helper::log('user_end_points', 'Error response: ' . json_encode($errorResponse));
-            }
-            $this->amesieLogStatus && \Helper::log('user_end_points', 'User end points request has been completed.');
-        } catch (Exception $e) {
-            $this->amesieLogStatus && \Helper::logException($e, 'user_end_points');
-            if ($e->getCode() === 401) {
-                $this->tokenService->disconnectAmeise();
-            }
-        }
-        return [];
-    }
-
-    public function fetchUserByEmail($email)
-    {
-        try {
-            $result = $this->getAccessToken();
-            if ($result && ($resultArray = json_decode($result, true)) && isset($resultArray['error'])) {
-                return $resultArray;
-            }
-            $client = new Client();
-            $this->amesieLogStatus && \Helper::log('fetch_user_email', 'Fetch user by email request with access token: ' . $this->getAccessToken());
-            $response = $client->get($this->base_url . $this->tokenService->getMa() . '/kunden/_search', [
-                'headers' => [
-                    'Authorization' => 'Bearer ' . $this->getAccessToken(),
-                ],
-                'query' => [
-                    'mail' => $email,
-                ]
-            ]);
-            $this->amesieLogStatus && \Helper::log('fetch_user_email', 'fetch user by email request response status: ' . $response->getStatusCode());
-            if ($response->getStatusCode() === 200) {
-                return json_decode($response->getBody(), true);
-            } elseif ($response->getStatusCode() === 401) {
-                $this->tokenService->disconnectAmeise();
-            } else {
-                $errorResponse = json_decode($response->getBody(), true);
-                $this->amesieLogStatus && \Helper::log('fetch_user_email', 'Fetch user by email request failed with status code: ' . $response->getStatusCode());
-                $this->amesieLogStatus && \Helper::log('fetch_user_email', 'Error response: ' . json_encode($errorResponse));
-            }
-            $this->amesieLogStatus && \Helper::log('fetch_user_email', 'fetch user by email has been completed.');
-        } catch (Exception $e) {
-            $this->amesieLogStatus && \Helper::logException($e, 'fetch_user_email');
-            if ($e->getCode() === 401) {
-                $this->tokenService->disconnectAmeise();
-            }
-        }
-        return [];
-    }
-
-    public function getContracts($customerId)
-    {
-        try {
-            $result = $this->getAccessToken();
-            if ($result && ($resultArray = json_decode($result, true)) && isset($resultArray['error'])) {
-                return $resultArray;
-            }
-            $client = new Client();
-            $this->amesieLogStatus && \Helper::log('get_contracts', 'get contract request with access token: ' . $this->getAccessToken());
-            $response = $client->get($this->base_url . $this->tokenService->getMa() . '/kunden/' . $customerId . '/vertraege', [
-                'headers' => [
-                    'Authorization' => 'Bearer ' . $this->getAccessToken(),
-                ],
-            ]);
-            $this->amesieLogStatus && \Helper::log('get_contracts', 'get contracts request response status is: ' . $response->getStatusCode());
-            if ($response->getStatusCode() === 200) {
-                return json_decode($response->getBody(), true);
-            } elseif ($response->getStatusCode() === 401) {
-                $this->tokenService->disconnectAmeise();
-            } else {
-                $errorResponse = json_decode($response->getBody(), true);
-                $this->amesieLogStatus && \Helper::log('get_contracts', 'get contract request failed with status code: ' . $response->getStatusCode());
-                $this->amesieLogStatus && \Helper::log('get_contracts', 'Error response: ' . json_encode($errorResponse));
-            }
-            $this->amesieLogStatus && \Helper::log('get_contracts', 'Get contract request has been completed.');
-        } catch (Exception $e) {
-            $this->amesieLogStatus && \Helper::logException($e, 'get_contracts');
-            if ($e->getCode() === 401) {
-                $this->tokenService->disconnectAmeise();
-            }
-            return ['error' => 'redirect' ,'url' => $this->tokenService->getAuthUrl()];
-        }
-        return [];
-    }
-
-    public function getContactEndPoints($end_points)
-    {
-        try {
-            $result = $this->getAccessToken();
-            if ($result && ($resultArray = json_decode($result, true)) && isset($resultArray['error'])) {
-                return $resultArray;
-            }
-            $client = new Client();
-            $this->amesieLogStatus && \Helper::log('contracts_end_points', 'get contract end points request with access token: ' . $this->getAccessToken());
-            $response = $client->get($this->base_url . $end_points, [
-                'headers' => [
-                    'Authorization' => 'Bearer ' . $this->getAccessToken(),
-                ],
-            ]);
-            $this->amesieLogStatus && \Helper::log('contracts_end_points', 'get contracts end points request response status is: ' . $response->getStatusCode());
-            if ($response->getStatusCode() === 200) {
-                return json_decode($response->getBody(), true);
-            } elseif ($response->getStatusCode() === 401) {
-                $this->tokenService->disconnectAmeise();
-            } else {
-                $errorResponse = json_decode($response->getBody(), true);
-                $this->amesieLogStatus && \Helper::log('contracts_end_points', 'get contract end points request failed with status code: ' . $response->getStatusCode());
-                $this->amesieLogStatus && \Helper::log('contracts_end_points', 'Error response: ' . json_encode($errorResponse));
-            }
-            $this->amesieLogStatus && \Helper::log('contracts_end_points', 'get contract end points  request has been completed.');
-            return [];
-        } catch (Exception $e) {
-            $body = $e->hasResponse() ? (string) $e->getResponse()->getBody() : '';
-            $this->amesieLogStatus && \Helper::log('conversation_archive', 'Error body: ' . $body);
-            $this->amesieLogStatus && \Helper::logException($e, 'conversation_archive');
-            if ($e->getCode() === 401) {
-                $this->tokenService->disconnectAmeise();
-            }
-        }
-        return [];
-    }
-
-    public function archiveConversation($data)
+    private function checkTokenError()
     {
         $result = $this->getAccessToken();
         if ($result && ($resultArray = json_decode($result, true)) && isset($resultArray['error'])) {
             return $resultArray;
         }
-        $client = new Client();
-        $this->amesieLogStatus && \Helper::log('conversation_archive', 'archive conversation request called with access token: ' . $this->getAccessToken());
-        $headers = [
-            'X-Dio-Betreff' =>  $data['subject'],
-            'x-dio-metadaten' =>  json_encode($data['x-dio-metadaten']),
-            'X-Dio-Typ' => $data['type'],
-            'Content-Type' => $data['Content-Type'] ??  'text/plain; charset="utf-8"',
-            'X-Dio-Zuordnungen' =>  json_encode($data['X-Dio-Zuordnungen']),
-            'X-Dio-Datum' =>  $data['X-Dio-Datum'],
-            'Authorization' => 'Bearer ' . $this->getAccessToken(),
-        ];
+        return null;
+    }
+
+    private function apiGet($url, $logContext, array $options = [], $errorReturn = [])
+    {
         try {
-            $response = $client->request('POST', $this->base_url . $this->tokenService->getMa() . '/archiveintraege', [
+            $tokenError = $this->checkTokenError();
+            if ($tokenError) {
+                return $tokenError;
+            }
+            $this->amesieLogStatus && \Helper::log($logContext, 'Sending GET request to: ' . $url);
+            $requestOptions = array_merge([
+                'headers' => [
+                    'Authorization' => 'Bearer ' . $this->getAccessToken(),
+                ],
+            ], $options);
+            $response = $this->client->get($url, $requestOptions);
+            $this->amesieLogStatus && \Helper::log($logContext, 'Response status: ' . $response->getStatusCode());
+            if ($response->getStatusCode() === 200) {
+                return json_decode($response->getBody(), true);
+            } elseif ($response->getStatusCode() === 401) {
+                $this->tokenService->disconnectAmeise();
+            } else {
+                $errorResponse = json_decode($response->getBody(), true);
+                $this->amesieLogStatus && \Helper::log($logContext, 'Request failed with status code: ' . $response->getStatusCode());
+                $this->amesieLogStatus && \Helper::log($logContext, 'Error response: ' . json_encode($errorResponse));
+            }
+            $this->amesieLogStatus && \Helper::log($logContext, 'Request completed.');
+        } catch (Exception $e) {
+            $this->amesieLogStatus && \Helper::logException($e, $logContext);
+            if ($e->getCode() === 401) {
+                $this->tokenService->disconnectAmeise();
+            }
+            if ($e->hasResponse()) {
+                $body = (string) $e->getResponse()->getBody();
+                $this->amesieLogStatus && \Helper::log($logContext, 'Error body: ' . $body);
+            }
+            return $errorReturn;
+        }
+        return [];
+    }
+
+    private function maUrl($path)
+    {
+        return $this->base_url . $this->tokenService->getMa() . '/' . $path;
+    }
+
+    public function fetchUserByIdOrName($data)
+    {
+        $searchQuery = rawurlencode($data);
+        return $this->apiGet(
+            $this->maUrl('kunden/_search?q=' . $searchQuery),
+            'fetch_user_id_name'
+        );
+    }
+
+    public function fetchUserDetail($id, $endPoints)
+    {
+        return $this->apiGet(
+            $this->maUrl('kunden/' . $id . '/' . $endPoints),
+            'user_end_points'
+        );
+    }
+
+    public function fetchUserByEmail($email)
+    {
+        return $this->apiGet(
+            $this->maUrl('kunden/_search'),
+            'fetch_user_email',
+            ['query' => ['mail' => $email]]
+        );
+    }
+
+    public function getContracts($customerId)
+    {
+        return $this->apiGet(
+            $this->maUrl('kunden/' . $customerId . '/vertraege'),
+            'get_contracts',
+            [],
+            ['error' => 'redirect', 'url' => $this->tokenService->getAuthUrl()]
+        );
+    }
+
+    public function getContactEndPoints($end_points)
+    {
+        return $this->apiGet(
+            $this->base_url . $end_points,
+            'contracts_end_points'
+        );
+    }
+
+    public function archiveConversation($data)
+    {
+        try {
+            $tokenError = $this->checkTokenError();
+            if ($tokenError) {
+                return $tokenError;
+            }
+            $this->amesieLogStatus && \Helper::log('conversation_archive', 'Archive conversation request called.');
+            $headers = [
+                'X-Dio-Betreff' =>  $data['subject'],
+                'x-dio-metadaten' =>  json_encode($data['x-dio-metadaten']),
+                'X-Dio-Typ' => $data['type'],
+                'Content-Type' => $data['Content-Type'] ??  'text/plain; charset="utf-8"',
+                'X-Dio-Zuordnungen' =>  json_encode($data['X-Dio-Zuordnungen']),
+                'X-Dio-Datum' =>  $data['X-Dio-Datum'],
+                'Authorization' => 'Bearer ' . $this->getAccessToken(),
+            ];
+            $response = $this->client->request('POST', $this->maUrl('archiveintraege'), [
                 'headers' => $headers,
                 'body' => $data['body'],
             ]);
-            $this->amesieLogStatus && \Helper::log('conversation_archive', 'archive conversation request response status is: ' . $response->getStatusCode());
+            $this->amesieLogStatus && \Helper::log('conversation_archive', 'Response status: ' . $response->getStatusCode());
             if ($response->getStatusCode() === 200) {
                 return $response->getBody();
             } elseif ($response->getStatusCode() === 401) {
                 $this->tokenService->disconnectAmeise();
             } else {
                 $errorResponse = json_decode($response->getBody(), true);
-                $this->amesieLogStatus && \Helper::log('conversation_archive', 'archive conversation request failed with status code: ' . $response->getStatusCode());
+                $this->amesieLogStatus && \Helper::log('conversation_archive', 'Request failed with status code: ' . $response->getStatusCode());
                 $this->amesieLogStatus && \Helper::log('conversation_archive', 'Error response: ' . json_encode($errorResponse));
             }
         } catch (Exception $e) {
