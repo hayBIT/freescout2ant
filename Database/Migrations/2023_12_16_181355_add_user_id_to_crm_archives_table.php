@@ -10,10 +10,12 @@ class AddUserIdToCrmArchivesTable extends Migration
     public function up()
     {
         Schema::table('crm_archives', function (Blueprint $table) {
-            $table->integer('archived_by')->after('divisions');
+            $table->integer('archived_by')->nullable()->after('divisions');
         });
-        $firstUserId = \App\User::first();
-        DB::table('crm_archives')->update(['archived_by' => $firstUserId]);
+        $firstUser = \App\User::first();
+        if ($firstUser) {
+            DB::table('crm_archives')->update(['archived_by' => $firstUser->id]);
+        }
     }
 
     public function down()
