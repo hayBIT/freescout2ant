@@ -51,7 +51,8 @@ class CrmApiClient
             $response = $this->client->get($url, $requestOptions);
             $this->amesieLogStatus && \Helper::log($logContext, 'Response status: ' . $response->getStatusCode());
             if ($response->getStatusCode() === 200) {
-                return json_decode($response->getBody(), true);
+                $this->amesieLogStatus && \Helper::log($logContext, 'Request completed.');
+                return json_decode($response->getBody(), true) ?? $errorReturn;
             } elseif ($response->getStatusCode() === 401) {
                 $this->tokenService->disconnectAmeise();
             } else {
@@ -60,6 +61,7 @@ class CrmApiClient
                 $this->amesieLogStatus && \Helper::log($logContext, 'Error response: ' . json_encode($errorResponse));
             }
             $this->amesieLogStatus && \Helper::log($logContext, 'Request completed.');
+            return $errorReturn;
         } catch (Exception $e) {
             $this->amesieLogStatus && \Helper::logException($e, $logContext);
             if ($e->getCode() === 401) {
@@ -71,7 +73,6 @@ class CrmApiClient
             }
             return $errorReturn;
         }
-        return [];
     }
 
     private function maUrl($path)
@@ -149,7 +150,7 @@ class CrmApiClient
             ]);
             $this->amesieLogStatus && \Helper::log('conversation_archive', 'Response status: ' . $response->getStatusCode());
             if ($response->getStatusCode() === 200) {
-                return $response->getBody();
+                return true;
             } elseif ($response->getStatusCode() === 401) {
                 $this->tokenService->disconnectAmeise();
             } else {
@@ -157,6 +158,7 @@ class CrmApiClient
                 $this->amesieLogStatus && \Helper::log('conversation_archive', 'Request failed with status code: ' . $response->getStatusCode());
                 $this->amesieLogStatus && \Helper::log('conversation_archive', 'Error response: ' . json_encode($errorResponse));
             }
+            return false;
         } catch (Exception $e) {
             $body = $e->hasResponse() ? (string) $e->getResponse()->getBody() : '';
             $this->amesieLogStatus && \Helper::log('conversation_archive', 'Error body: ' . $body);
