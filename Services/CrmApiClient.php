@@ -9,14 +9,14 @@ class CrmApiClient
 {
     private $base_url;
     private $tokenService;
-    private $amesieLogStatus;
+    private $ameiseLogStatus;
     private $client;
 
     public function __construct(TokenService $tokenService)
     {
         $this->tokenService = $tokenService;
         $this->base_url = (config('ameisemodule.ameise_mode') == 'test' ? 'https://mitarbeiterwebservice-maklerinfo.inte.dionera.dev/service/bd/employee/1.0/rest/' : 'https://mitarbeiterwebservice.maklerinfo.biz/service/bd/employee/1.0/rest/');
-        $this->amesieLogStatus = config('ameisemodule.ameise_log_status');
+        $this->ameiseLogStatus = config('ameisemodule.ameise_log_status');
         $this->client = new Client();
     }
 
@@ -42,32 +42,32 @@ class CrmApiClient
                 return $tokenError;
             }
             $url = $useBaseOnly ? $this->base_url . $path : $this->maUrl($path);
-            $this->amesieLogStatus && \Helper::log($logContext, 'Sending GET request to: ' . $url);
+            $this->ameiseLogStatus && \Helper::log($logContext, 'Sending GET request to: ' . $url);
             $requestOptions = array_merge([
                 'headers' => [
                     'Authorization' => 'Bearer ' . $this->getAccessToken(),
                 ],
             ], $options);
             $response = $this->client->get($url, $requestOptions);
-            $this->amesieLogStatus && \Helper::log($logContext, 'Response status: ' . $response->getStatusCode());
+            $this->ameiseLogStatus && \Helper::log($logContext, 'Response status: ' . $response->getStatusCode());
             if ($response->getStatusCode() === 200) {
                 return json_decode($response->getBody(), true);
             } elseif ($response->getStatusCode() === 401) {
                 $this->tokenService->disconnectAmeise();
             } else {
                 $errorResponse = json_decode($response->getBody(), true);
-                $this->amesieLogStatus && \Helper::log($logContext, 'Request failed with status code: ' . $response->getStatusCode());
-                $this->amesieLogStatus && \Helper::log($logContext, 'Error response: ' . json_encode($errorResponse));
+                $this->ameiseLogStatus && \Helper::log($logContext, 'Request failed with status code: ' . $response->getStatusCode());
+                $this->ameiseLogStatus && \Helper::log($logContext, 'Error response: ' . json_encode($errorResponse));
             }
-            $this->amesieLogStatus && \Helper::log($logContext, 'Request completed.');
+            $this->ameiseLogStatus && \Helper::log($logContext, 'Request completed.');
         } catch (Exception $e) {
-            $this->amesieLogStatus && \Helper::logException($e, $logContext);
+            $this->ameiseLogStatus && \Helper::logException($e, $logContext);
             if ($e->getCode() === 401) {
                 $this->tokenService->disconnectAmeise();
             }
             if ($e->hasResponse()) {
                 $body = (string) $e->getResponse()->getBody();
-                $this->amesieLogStatus && \Helper::log($logContext, 'Error body: ' . $body);
+                $this->ameiseLogStatus && \Helper::log($logContext, 'Error body: ' . $body);
             }
             return $errorReturn;
         }
@@ -133,7 +133,7 @@ class CrmApiClient
             if ($tokenError) {
                 return $tokenError;
             }
-            $this->amesieLogStatus && \Helper::log('conversation_archive', 'Archive conversation request called.');
+            $this->ameiseLogStatus && \Helper::log('conversation_archive', 'Archive conversation request called.');
             $headers = [
                 'X-Dio-Betreff' =>  $data['subject'],
                 'x-dio-metadaten' =>  json_encode($data['x-dio-metadaten']),
@@ -147,20 +147,20 @@ class CrmApiClient
                 'headers' => $headers,
                 'body' => $data['body'],
             ]);
-            $this->amesieLogStatus && \Helper::log('conversation_archive', 'Response status: ' . $response->getStatusCode());
+            $this->ameiseLogStatus && \Helper::log('conversation_archive', 'Response status: ' . $response->getStatusCode());
             if ($response->getStatusCode() === 200) {
                 return $response->getBody();
             } elseif ($response->getStatusCode() === 401) {
                 $this->tokenService->disconnectAmeise();
             } else {
                 $errorResponse = json_decode($response->getBody(), true);
-                $this->amesieLogStatus && \Helper::log('conversation_archive', 'Request failed with status code: ' . $response->getStatusCode());
-                $this->amesieLogStatus && \Helper::log('conversation_archive', 'Error response: ' . json_encode($errorResponse));
+                $this->ameiseLogStatus && \Helper::log('conversation_archive', 'Request failed with status code: ' . $response->getStatusCode());
+                $this->ameiseLogStatus && \Helper::log('conversation_archive', 'Error response: ' . json_encode($errorResponse));
             }
         } catch (Exception $e) {
             $body = $e->hasResponse() ? (string) $e->getResponse()->getBody() : '';
-            $this->amesieLogStatus && \Helper::log('conversation_archive', 'Error body: ' . $body);
-            $this->amesieLogStatus && \Helper::logException($e, 'conversation_archive');
+            $this->ameiseLogStatus && \Helper::log('conversation_archive', 'Error body: ' . $body);
+            $this->ameiseLogStatus && \Helper::logException($e, 'conversation_archive');
             if ($e->getCode() === 401) {
                 $this->tokenService->disconnectAmeise();
             }
