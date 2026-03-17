@@ -17,7 +17,7 @@ class TokenService
     private $scope;
     private $code;
     private $redirectUrl;
-    private $amesieLogStatus;
+    private $ameiseLogStatus;
     private $file;
     private $url;
     public $ma;
@@ -31,7 +31,7 @@ class TokenService
         $this->clientSecret = config('ameisemodule.ameise_client_secret');
         $this->scope = config('ameisemodule.ameise_scope');
         $this->code = $code;
-        $this->amesieLogStatus = config('ameisemodule.ameise_log_status');
+        $this->ameiseLogStatus = config('ameisemodule.ameise_log_status');
     }
 
     public function getAuthUrl()
@@ -43,7 +43,7 @@ class TokenService
     {
         try {
             if (!file_exists(storage_path($this->file))) {
-                $this->amesieLogStatus && \Helper::log('token_end_point', 'Token file does not exist. Creating a new file.');
+                $this->ameiseLogStatus && \Helper::log('token_end_point', 'Token file does not exist. Creating a new file.');
                 $result = $this->createTokenFile();
                 if(isset($result)){
                     return $result;
@@ -51,7 +51,7 @@ class TokenService
             }
             $tokens = json_decode(file_get_contents(storage_path($this->file)));
             if (!$tokens || empty($tokens->access_token) || empty($tokens->expires_in)) {
-                $this->amesieLogStatus && \Helper::log('token_end_point', 'Token file is invalid or incomplete. Requesting a new token file.');
+                $this->ameiseLogStatus && \Helper::log('token_end_point', 'Token file is invalid or incomplete. Requesting a new token file.');
                 $result = $this->createTokenFile();
                 if (isset($result)) {
                     return $result;
@@ -62,12 +62,12 @@ class TokenService
             if (!empty($tokens->ma)) {
                 $this->ma = $tokens->ma;
             } else {
-                $this->amesieLogStatus && \Helper::log('user_info', 'User info missing. Calling userInfo to retrieve it.');
+                $this->ameiseLogStatus && \Helper::log('user_info', 'User info missing. Calling userInfo to retrieve it.');
                 $this->userInfo();
             }
             if ($this->dateTimePassed($tokens->expires_in, self::TOKEN_EXPIRY_SAFETY_BUFFER)) {
                 $this->refresh_token = $tokens->refresh_token ?? '';
-                $this->amesieLogStatus && \Helper::log('token_end_point', 'Access token is expired or about to expire. Refreshing token.');
+                $this->ameiseLogStatus && \Helper::log('token_end_point', 'Access token is expired or about to expire. Refreshing token.');
                 $result = $this->createTokenFile();
                 if (isset($result)) {
                     return $result;
@@ -75,10 +75,10 @@ class TokenService
                 $tokens = json_decode(file_get_contents(storage_path($this->file)));
                 $this->access_token = $tokens->access_token ?? '';
             }
-            $this->amesieLogStatus && \Helper::log('token_end_point', 'Access token retrieved successfully.' . $this->access_token);
+            $this->ameiseLogStatus && \Helper::log('token_end_point', 'Access token retrieved successfully.' . $this->access_token);
             return $this->access_token;
         } catch (\Exception $e) {
-            $this->amesieLogStatus && \Helper::logException($e, 'token_end_point');
+            $this->ameiseLogStatus && \Helper::logException($e, 'token_end_point');
         }
     }
 
@@ -125,12 +125,12 @@ class TokenService
                     'refresh_token' => $this->refresh_token
                 ];
             }
-            $this->amesieLogStatus && \Helper::log('token_generate', 'Sending a token request to ' . $this->url . '/oauth2/token');
+            $this->ameiseLogStatus && \Helper::log('token_generate', 'Sending a token request to ' . $this->url . '/oauth2/token');
             $response = $client->post($this->url . '/oauth2/token', [
                 'headers' => $headers,
                 'form_params' => $requestData,
             ]);
-            $this->amesieLogStatus && \Helper::log('token_generate', 'Token request sent with status code: ' . $response->getStatusCode());
+            $this->ameiseLogStatus && \Helper::log('token_generate', 'Token request sent with status code: ' . $response->getStatusCode());
             if ($response->getStatusCode() === 200) {
                 $responseData = json_decode($response->getBody(), true);
                 if (isset($responseData['expires_in'])) {
@@ -141,21 +141,21 @@ class TokenService
                 $fp = fopen($filePath, 'w');
                 fwrite($fp, json_encode($responseData));
                 fclose($fp);
-                $this->amesieLogStatus && \Helper::log('token_generate', 'Token file created successfully.');
+                $this->ameiseLogStatus && \Helper::log('token_generate', 'Token file created successfully.');
                 $this->userInfo();
             } else {
                 unlink($filePath);
-                $this->amesieLogStatus && \Helper::log('token_generate', 'Token request failed with status code: ' . $response->getStatusCode());
+                $this->ameiseLogStatus && \Helper::log('token_generate', 'Token request failed with status code: ' . $response->getStatusCode());
                 $errorResponse = json_decode($response->getBody(), true);
-                $this->amesieLogStatus && \Helper::log('token_generate', 'Error response:' . json_encode($errorResponse));
+                $this->ameiseLogStatus && \Helper::log('token_generate', 'Error response:' . json_encode($errorResponse));
             }
         } catch (Exception $e) {
             if ($this->refreshRequestRequiresReauthentication($e)) {
-                $this->amesieLogStatus && \Helper::log('token_generate', 'Refresh token is no longer valid. New authentication is required.');
+                $this->ameiseLogStatus && \Helper::log('token_generate', 'Refresh token is no longer valid. New authentication is required.');
                 $this->disconnectAmeise();
                 return json_encode(['error' => 'redirect', 'url' => $this->getAuthUrl()]);
             }
-            $this->amesieLogStatus && \Helper::logException($e, 'token_generate');
+            $this->ameiseLogStatus && \Helper::logException($e, 'token_generate');
         }
     }
 
@@ -163,7 +163,7 @@ class TokenService
     {
         try {
             $tokens = json_decode(file_get_contents(storage_path($this->file)));
-            $this->amesieLogStatus && \Helper::log('user_info', 'Sending a userinfo request with access token: ' . $this->access_token);
+            $this->ameiseLogStatus && \Helper::log('user_info', 'Sending a userinfo request with access token: ' . $this->access_token);
             $client = new Client();
             $response = $client->get($this->url . '/userinfo', [
                 'headers' => [
@@ -171,7 +171,7 @@ class TokenService
                     'Content-Type' => 'application/json',
                 ]
             ]);
-            $this->amesieLogStatus && \Helper::log('user_info', 'Userinfo request response data: ' . $response->getStatusCode());
+            $this->ameiseLogStatus && \Helper::log('user_info', 'Userinfo request response data: ' . $response->getStatusCode());
             if ($response->getStatusCode() === 200) {
                 $responseData = json_decode($response->getBody(), true);
                 $tokens->ma = $responseData['sub'];
@@ -182,15 +182,15 @@ class TokenService
                 $this->disconnectAmeise();
             } else {
                 $errorResponse = json_decode($response->getBody(), true);
-                $this->amesieLogStatus && \Helper::log('user_info', 'User info request failed with status code: ' . $response->getStatusCode());
-                $this->amesieLogStatus && \Helper::log('user_info', 'Error response:' . json_encode($errorResponse));
+                $this->ameiseLogStatus && \Helper::log('user_info', 'User info request failed with status code: ' . $response->getStatusCode());
+                $this->ameiseLogStatus && \Helper::log('user_info', 'Error response:' . json_encode($errorResponse));
             }
-            $this->amesieLogStatus && \Helper::log('user_info', 'User info request completed.');
+            $this->ameiseLogStatus && \Helper::log('user_info', 'User info request completed.');
             return $responseData ?? null;
         } catch (Exception $e) {
-            $this->amesieLogStatus && \Helper::logException($e, 'user_info');
+            $this->ameiseLogStatus && \Helper::logException($e, 'user_info');
             if ($e->getCode() === 401) {
-                $this->amesieLogStatus && \Helper::log('user_info', 'Received unauthorized while loading user info. Trying token refresh.');
+                $this->ameiseLogStatus && \Helper::log('user_info', 'Received unauthorized while loading user info. Trying token refresh.');
                 if (!$this->refreshAccessTokenFromFile()) {
                     $this->disconnectAmeise();
                 }
