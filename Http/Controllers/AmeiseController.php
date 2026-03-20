@@ -51,7 +51,6 @@ class AmeiseController extends Controller
                     $results = $this->getFSUsers($inputs);
                 }
                 return $this->getCrmUsers($inputs, $results);
-                break;
 
             case 'get_contract':
                 $response = $this->apiClient->getContracts($request->input('client_id'));
@@ -76,7 +75,6 @@ class AmeiseController extends Controller
                     });
                 });
                 return response()->json(['contracts' => $groupedData, 'divisions' => $divisionResponse]);
-                break;
             case 'crm_conversation_archive':
                 $crm_archive = CrmArchive::where(
                     ['conversation_id' => $inputs['conversation_id'],
@@ -111,7 +109,6 @@ class AmeiseController extends Controller
                     }
                 }
                 return response()->json(['status' => true]);
-                break;
 
         }
 
@@ -179,7 +176,6 @@ class AmeiseController extends Controller
         });
         $customers = $customers_query->paginate(20);
         foreach ($customers as $customer) {
-            $id = '';
             $text = $customer->getNameAndEmail();
             $id = $customer->email;
 
