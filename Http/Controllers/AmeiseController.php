@@ -8,6 +8,7 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
+use Modules\AmeiseModule\Http\Requests\AmeiseAjaxRequest;
 use Modules\AmeiseModule\Services\TokenService;
 use Modules\AmeiseModule\Services\CrmApiClient;
 use Modules\AmeiseModule\Services\ConversationArchiver;
@@ -40,10 +41,10 @@ class AmeiseController extends Controller
     /**
      *  @return Response Crm ajax controller.
      */
-    public function ajax(Request $request)
+    public function ajax(AmeiseAjaxRequest $request)
     {
-        $inputs = $request->all();
-        switch ($request->action) {
+        $inputs = $request->validated();
+        switch ($request->input('action')) {
             case 'crm_users_search':
                 $results = [];
                 if(!empty($inputs['new_conversation'])) {
@@ -171,9 +172,11 @@ class AmeiseController extends Controller
         $response = [];
         $q = $inputs['search'];
         $customers_query = \App\Customer::select(['customers.id', 'first_name', 'last_name', 'emails.email'])->join('emails', 'customers.id', '=', 'emails.customer_id');
-        $customers_query->where('emails.email', 'like', '%'.$q.'%');
-        $customers_query->orWhere('first_name', 'like', '%'.$q.'%')
-            ->orWhere('last_name', 'like', '%'.$q.'%');
+        $customers_query->where(function ($query) use ($q) {
+            $query->where('emails.email', 'like', '%'.$q.'%')
+                ->orWhere('first_name', 'like', '%'.$q.'%')
+                ->orWhere('last_name', 'like', '%'.$q.'%');
+        });
         $customers = $customers_query->paginate(20);
         foreach ($customers as $customer) {
             $id = '';

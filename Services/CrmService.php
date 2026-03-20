@@ -115,9 +115,11 @@ class CrmService
         $response = [];
         $q = $inputs['search'];
         $customers_query = \App\Customer::select(['customers.id', 'first_name', 'last_name', 'emails.email'])->join('emails', 'customers.id', '=', 'emails.customer_id');
-        $customers_query->where('emails.email', 'like', '%'.$q.'%');
-        $customers_query->orWhere('first_name', 'like', '%'.$q.'%')
-            ->orWhere('last_name', 'like', '%'.$q.'%');
+        $customers_query->where(function ($query) use ($q) {
+            $query->where('emails.email', 'like', '%'.$q.'%')
+                ->orWhere('first_name', 'like', '%'.$q.'%')
+                ->orWhere('last_name', 'like', '%'.$q.'%');
+        });
         $customers = $customers_query->paginate(20);
         foreach ($customers as $customer) {
             $id = '';
