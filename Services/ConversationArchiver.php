@@ -69,7 +69,7 @@ class ConversationArchiver
         return [
             'type' =>  ($conversation->type == Conversation::TYPE_EMAIL) ? 'email' : 'telefon',
             'x-dio-metadaten' => $x_dio_metadaten,
-            'subject' => $conversation->subject,
+            'subject' => $conversation->subject ?? '(Kein Betreff)',
             'body' => $body,
             'Content-Type' => 'text/plain; charset=utf-8',
             'X-Dio-Datum' => Carbon::parse($thread->created_at)->setTimezone($userTimezone)->format('Y-m-d\TH:i:s'),
