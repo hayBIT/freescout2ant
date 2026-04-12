@@ -50,10 +50,7 @@ class AmeiseModuleServiceProvider extends ServiceProvider
         Eventy::addAction('conversation.action_buttons', function ($conversation) {
             $tokenService = new \Modules\AmeiseModule\Services\TokenService('', auth()->user()->id);
             $url = $tokenService->getAuthUrl();
-            $customerEmail = '';
-            if ($conversation && $conversation->customer) {
-                $customerEmail = $conversation->customer->getMainEmail() ?? '';
-            }
+            $customerEmail = $conversation->customer_email ?? '';
             echo View::make('ameise::partials/conversation_button', ['url' => $url, 'customerEmail' => $customerEmail])->render();
         }, 10, 2);
 
