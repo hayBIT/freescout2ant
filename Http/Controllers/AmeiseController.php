@@ -52,6 +52,10 @@ class AmeiseController extends Controller
                 return $this->getCrmUsers($inputs, $results);
                 break;
 
+            case 'crm_email_search':
+                return $this->getCrmUsersByEmail($inputs['email'] ?? '');
+                break;
+
             case 'get_contract':
                 $response = $this->apiClient->getContracts($request->input('client_id'));
                 if (isset($response['error']) && isset($response['url'])) {
@@ -129,6 +133,25 @@ class AmeiseController extends Controller
             'archives' => $archives,
         ])->render();
 
+    }
+
+    private function getCrmUsersByEmail($email)
+    {
+        if (empty($email)) {
+            return response()->json(['crmUsers' => []]);
+        }
+        $response = $this->apiClient->fetchUserByEmail($email);
+        if (isset($response['error']) && isset($response['url'])) {
+            return response()->json(['error' => 'Redirect', 'url' => $response['url']]);
+        }
+        $crmUsers = [];
+        foreach ($response as $data) {
+            $crmUsers[] = [
+                'id' => $data['Id'],
+                'text' => $data['Text'],
+            ];
+        }
+        return response()->json(['crmUsers' => $crmUsers]);
     }
 
     private function getCrmUsers($inputs, $result = [])

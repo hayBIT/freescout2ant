@@ -47,10 +47,14 @@ class AmeiseModuleServiceProvider extends ServiceProvider
      */
     public function hooks()
     {
-        Eventy::addAction('conversation.action_buttons', function () {
+        Eventy::addAction('conversation.action_buttons', function ($conversation) {
             $tokenService = new \Modules\AmeiseModule\Services\TokenService('', auth()->user()->id);
             $url = $tokenService->getAuthUrl();
-            echo View::make('ameise::partials/conversation_button', ['url' => $url])->render();
+            $customerEmail = '';
+            if ($conversation && $conversation->customer) {
+                $customerEmail = $conversation->customer->getMainEmail() ?? '';
+            }
+            echo View::make('ameise::partials/conversation_button', ['url' => $url, 'customerEmail' => $customerEmail])->render();
         }, 10, 2);
 
         Eventy::addAction('layout.body_bottom', function () {

@@ -1,14 +1,54 @@
 $(document).ready(function() {
     const csrfToken = $('meta[name="csrf-token"]').attr('content');
     $('#ameise-modal').on('show.bs.modal', function (e) {
-        const searchIcon = $(".loading-icon"); 
+        const searchIcon = $(".loading-icon");
         const customer_id = $('#customer_id');
         const crm_button = $('#crm_button');
         const archive_btn = $('#archive_btn');
 
         const input = document.getElementById('crm_user');
-        const awesomeList = new Awesomplete(input, { });
+        const awesomeList = new Awesomplete(input, { minChars: 0 });
         let dataList = [];
+
+        function showSuggestions(data) {
+            dataList = data.crmUsers;
+            searchIcon.hide();
+            const suggestions = dataList.map(item => ({
+                id: item.id,
+                text: item.text
+            }));
+            input.setAttribute('data-list', suggestions.map(item => item.text).join(','));
+            awesomeList.list = suggestions.map(item => item.text);
+            awesomeList.evaluate();
+        }
+
+        // Auto-search by customer email on modal open
+        const customerEmail = $('#ameise_customer_email').val();
+        if (customerEmail) {
+            searchIcon.show();
+            fetch("/ameise/ajax", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded",
+                },
+                body: `email=${encodeURIComponent(customerEmail)}&action=crm_email_search&_token=${encodeURIComponent(csrfToken)}`,
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error === 'Redirect') {
+                    window.open(data.url, '_blank');
+                } else {
+                    showSuggestions(data);
+                    if (data.crmUsers && data.crmUsers.length > 0) {
+                        awesomeList.open();
+                    }
+                }
+            })
+            .catch(error => {
+                searchIcon.hide();
+            });
+        }
+
         input.addEventListener('input', function () {
         searchIcon.show();
         const inputValue = input.value;
@@ -26,20 +66,12 @@ $(document).ready(function() {
                     window.open(data.url, '_blank');
 
                 } else {
-                    dataList = data.crmUsers;
-                    searchIcon.hide();
-                    const suggestions = dataList.map(item => ({
-                        id: item.id, // Assuming "id" is the property containing the ID
-                        text: item.text // Assuming "text" is the property containing the text
-                    }));
-                    input.setAttribute('data-list', suggestions.map(item => item.text).join(','));
-                    awesomeList.list = suggestions.map(item => item.text);
-                    awesomeList.evaluate();
+                    showSuggestions(data);
                 }
             })
             .catch(error => $('#result').html('An error occurred while fetching data.'));
         });
-    
+
         input.addEventListener('awesomplete-selectcomplete', function (e) {
             const selectedValue = e.text.value;
             let ameise_base_url = $('#ameise_base_url').val();
