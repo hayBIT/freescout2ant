@@ -1,85 +1,68 @@
 $(document).ready(function() {
     const csrfToken = $('meta[name="csrf-token"]').attr('content');
-    const input = document.getElementById('crm_user');
-    let awesomeList = null;
-    let dataList = [];
-    let emailSuggestionsCache = null;
-    let listenersAttached = false;
-
-    if (input) {
-        awesomeList = new Awesomplete(input, {
-            minChars: 0,
-            filter: function(text, input) {
-                if (input.trim() === '') return true;
-                return Awesomplete.FILTER_CONTAINS(text, input);
-            }
-        });
-    }
-
-    function showSuggestions(users) {
-        if (!awesomeList || !users || users.length === 0) return;
-        dataList = users;
-        $(".loading-icon").hide();
-        awesomeList.list = users.map(function(item) { return item.text; });
-        input.focus();
-        awesomeList.evaluate();
-    }
-
-    // Use shown.bs.modal so the modal is fully visible before showing suggestions
-    $('#ameise-modal').on('shown.bs.modal', function (e) {
-        // Show cached email suggestions if available
-        if (emailSuggestionsCache && emailSuggestionsCache.length > 0) {
-            showSuggestions(emailSuggestionsCache);
-        }
-    });
-
     $('#ameise-modal').on('show.bs.modal', function (e) {
         const searchIcon = $(".loading-icon");
         const customer_id = $('#customer_id');
         const crm_button = $('#crm_button');
         const archive_btn = $('#archive_btn');
-        emailSuggestionsCache = null;
 
-        if (!listenersAttached && input) {
-            listenersAttached = true;
+        const input = document.getElementById('crm_user');
+        const awesomeList = new Awesomplete(input, { });
+        let dataList = [];
 
-            input.addEventListener('input', function () {
-                searchIcon.show();
-                var inputValue = input.value;
-                fetch("/ameise/ajax", {
+        // Hide email suggestions when user starts typing
+        input.addEventListener('input', function () {
+        $('#email-suggestions').hide();
+        searchIcon.show();
+        const inputValue = input.value;
+        fetch("/ameise/ajax", {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/x-www-form-urlencoded",
                     },
-                    body: "search=" + encodeURIComponent(inputValue) + "&action=crm_users_search&_token=" + encodeURIComponent(csrfToken),
+                    body: `search=${encodeURIComponent(inputValue)}&action=crm_users_search&_token=${encodeURIComponent(csrfToken)}`,
                 })
-                .then(function(response) { return response.json(); })
-                .then(function(data) {
-                    if (data.error === 'Redirect') {
-                        window.open(data.url, '_blank');
-                    } else {
-                        showSuggestions(data.crmUsers || []);
-                    }
-                })
-                .catch(function() { $('#result').html('An error occurred while fetching data.'); });
-            });
+            .then(response => response.json())
+            .then(data => {
+                if (data.error === 'Redirect') {
+                    window.open(data.url, '_blank');
 
-            input.addEventListener('awesomplete-selectcomplete', function (e) {
-                var selectedValue = e.text.value;
-                var ameise_base_url = $('#ameise_base_url').val();
-                var selectedObject = dataList.find(function(item) { return item.text === selectedValue; });
-                $('#contract-tag-dropdown, #division-tag-dropdown').empty();
-                customer_id.val(selectedObject.id);
-                crm_button.show().text(selectedValue).
-                attr('href', ameise_base_url + 'maklerportal/?show=kunde&kunde=' + selectedObject.id);
-                archive_btn.show();
-                $("#contract-tag-dropdown, #division-tag-dropdown").show();
-                manageContractSelects();
-            });
+                } else {
+                    dataList = data.crmUsers;
+                    searchIcon.hide();
+                    const suggestions = dataList.map(item => ({
+                        id: item.id,
+                        text: item.text
+                    }));
+                    input.setAttribute('data-list', suggestions.map(item => item.text).join(','));
+                    awesomeList.list = suggestions.map(item => item.text);
+                    awesomeList.evaluate();
+                }
+            })
+            .catch(error => $('#result').html('An error occurred while fetching data.'));
+        });
+
+        function selectCrmUser(selectedId, selectedText) {
+            let ameise_base_url = $('#ameise_base_url').val();
+            $('#contract-tag-dropdown, #division-tag-dropdown').empty();
+            customer_id.val(selectedId);
+            input.value = selectedText;
+            crm_button.show().text(selectedText).
+            attr('href', `${ameise_base_url}maklerportal/?show=kunde&kunde=${selectedId}`);
+            archive_btn.show();
+            $('#email-suggestions').hide();
+            $("#contract-tag-dropdown, #division-tag-dropdown").show();
+            manageContractSelects();
         }
 
+        input.addEventListener('awesomplete-selectcomplete', function (e) {
+            const selectedValue = e.text.value;
+            const selectedObject = dataList.find(item => item.text === selectedValue);
+            selectCrmUser(selectedObject.id, selectedValue);
+        });
+
         // Auto-search by customer email on modal open
-        var customerEmail = $('#ameise_customer_email').val();
+        const customerEmail = $('#ameise_customer_email').val();
         if (customerEmail) {
             searchIcon.show();
             fetch("/ameise/ajax", {
@@ -87,24 +70,32 @@ $(document).ready(function() {
                 headers: {
                     "Content-Type": "application/x-www-form-urlencoded",
                 },
-                body: "email=" + encodeURIComponent(customerEmail) + "&action=crm_email_search&_token=" + encodeURIComponent(csrfToken),
+                body: `email=${encodeURIComponent(customerEmail)}&action=crm_email_search&_token=${encodeURIComponent(csrfToken)}`,
             })
-            .then(function(response) { return response.json(); })
-            .then(function(data) {
+            .then(response => response.json())
+            .then(data => {
                 if (data.error === 'Redirect') {
                     window.open(data.url, '_blank');
                 } else if (data.crmUsers && data.crmUsers.length > 0) {
-                    // Cache results; shown.bs.modal will display them when modal is visible
-                    emailSuggestionsCache = data.crmUsers;
-                    // If modal is already visible, show immediately
-                    if ($('#ameise-modal').hasClass('in')) {
-                        showSuggestions(data.crmUsers);
-                    }
+                    searchIcon.hide();
+                    dataList = data.crmUsers;
+                    const $list = $('#email-suggestions-list');
+                    $list.empty();
+                    data.crmUsers.forEach(function(user) {
+                        const $item = $('<li class="list-group-item"></li>')
+                            .text(user.text)
+                            .attr('data-id', user.id)
+                            .on('click', function() {
+                                selectCrmUser(user.id, user.text);
+                            });
+                        $list.append($item);
+                    });
+                    $('#email-suggestions').show();
                 } else {
                     searchIcon.hide();
                 }
             })
-            .catch(function() {
+            .catch(error => {
                 searchIcon.hide();
             });
         }

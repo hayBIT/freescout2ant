@@ -15,6 +15,9 @@
       <input type="hidden" name="customer_id" id="customer_id" value=""  class="form-control">
       <input type="text" name="crm_id" id="crm_user" class="form-control">
     </div>
+    <div id="email-suggestions" style="display: none;">
+        <ul class="list-group" id="email-suggestions-list"></ul>
+    </div>
     <div>
         <a  id="crm_button" target="_blank" class="text-large"></a>
     </div>
