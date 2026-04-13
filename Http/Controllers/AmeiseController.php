@@ -140,16 +140,18 @@ class AmeiseController extends Controller
         if (empty($email)) {
             return response()->json(['crmUsers' => []]);
         }
-        $response = $this->apiClient->fetchUserByEmail($email);
+        $response = $this->apiClient->fetchUserByIdOrName($email);
         if (isset($response['error']) && isset($response['url'])) {
             return response()->json(['error' => 'Redirect', 'url' => $response['url']]);
         }
         $crmUsers = [];
-        foreach ($response as $data) {
-            $crmUsers[] = [
-                'id' => $data['Id'],
-                'text' => $data['Text'],
-            ];
+        if (is_array($response)) {
+            foreach ($response as $data) {
+                $crmUsers[] = [
+                    'id' => $data['Id'],
+                    'text' => $data['Text'],
+                ];
+            }
         }
         return response()->json(['crmUsers' => $crmUsers]);
     }
