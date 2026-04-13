@@ -108,8 +108,9 @@ class CrmApiClient
             $response = $this->client->post($url, [
                 'headers' => [
                     'Authorization' => 'Bearer ' . $this->getAccessToken(),
+                    'Content-Type' => 'application/json',
                 ],
-                'form_params' => [
+                'json' => [
                     'mail' => $email,
                 ],
             ]);
