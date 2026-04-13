@@ -98,11 +98,39 @@ class CrmApiClient
 
     public function fetchUserByEmail($email)
     {
-        return $this->apiGet(
-            'kunden/_search',
-            'fetch_user_email',
-            ['query' => ['mail' => $email]]
-        );
+        try {
+            $tokenError = $this->checkTokenError();
+            if ($tokenError) {
+                return $tokenError;
+            }
+            $url = $this->maUrl('kunden/_search');
+            $this->ameiseLogStatus && \Helper::log('fetch_user_email', 'Sending POST request to: ' . $url);
+            $response = $this->client->post($url, [
+                'headers' => [
+                    'Authorization' => 'Bearer ' . $this->getAccessToken(),
+                ],
+                'form_params' => [
+                    'mail' => $email,
+                ],
+            ]);
+            $this->ameiseLogStatus && \Helper::log('fetch_user_email', 'Response status: ' . $response->getStatusCode());
+            if ($response->getStatusCode() === 200) {
+                return json_decode($response->getBody(), true);
+            } elseif ($response->getStatusCode() === 401) {
+                $this->tokenService->disconnectAmeise();
+            }
+        } catch (Exception $e) {
+            $this->ameiseLogStatus && \Helper::logException($e, 'fetch_user_email');
+            if ($e->getCode() === 401) {
+                $this->tokenService->disconnectAmeise();
+            }
+            if ($e->hasResponse()) {
+                $body = (string) $e->getResponse()->getBody();
+                $this->ameiseLogStatus && \Helper::log('fetch_user_email', 'Error body: ' . $body);
+            }
+            return [];
+        }
+        return [];
     }
 
     public function getContracts($customerId)

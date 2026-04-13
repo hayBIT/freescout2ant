@@ -140,7 +140,7 @@ class AmeiseController extends Controller
         if (empty($email)) {
             return response()->json(['crmUsers' => []]);
         }
-        $response = $this->apiClient->fetchUserByIdOrName($email);
+        $response = $this->apiClient->fetchUserByEmail($email);
         if (isset($response['error']) && isset($response['url'])) {
             return response()->json(['error' => 'Redirect', 'url' => $response['url']]);
         }
