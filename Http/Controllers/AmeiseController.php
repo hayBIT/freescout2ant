@@ -133,7 +133,23 @@ class AmeiseController extends Controller
 
     private function getCrmUsers($inputs, $result = [])
     {
-        $response = $this->apiClient->fetchUserByIdOrName($inputs['search']);
+        $response = [];
+        if (!empty($inputs['search_by_mail']) && !empty($inputs['conversation_id'])) {
+            $conversation = Conversation::find($inputs['conversation_id']);
+            if (!empty($conversation->customer_email)) {
+                $response = $this->apiClient->fetchUserByEmail($conversation->customer_email);
+            }
+        }
+
+        if (empty($response)) {
+            $search = trim($inputs['search'] ?? '');
+            if ($search === '') {
+                $result['crmUsers'] = [];
+                return response()->json($result);
+            }
+            $response = $this->apiClient->fetchUserByIdOrName($search);
+        }
+
         if (isset($response['error']) && isset($response['url'])) {
             return response()->json(['error' => 'Redirect', 'url' => $response['url']]);
         }

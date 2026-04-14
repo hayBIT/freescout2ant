@@ -74,6 +74,46 @@ class CrmApiClient
         return [];
     }
 
+    private function apiPost($path, $logContext, array $options = [], $errorReturn = [], $useBaseOnly = false)
+    {
+        try {
+            $tokenError = $this->checkTokenError();
+            if ($tokenError) {
+                return $tokenError;
+            }
+            $url = $useBaseOnly ? $this->base_url . $path : $this->maUrl($path);
+            $this->ameiseLogStatus && \Helper::log($logContext, 'Sending POST request to: ' . $url);
+            $requestOptions = array_merge([
+                'headers' => [
+                    'Authorization' => 'Bearer ' . $this->getAccessToken(),
+                ],
+            ], $options);
+            $response = $this->client->post($url, $requestOptions);
+            $this->ameiseLogStatus && \Helper::log($logContext, 'Response status: ' . $response->getStatusCode());
+            if ($response->getStatusCode() === 200) {
+                return json_decode($response->getBody(), true);
+            } elseif ($response->getStatusCode() === 401) {
+                $this->tokenService->disconnectAmeise();
+            } else {
+                $errorResponse = json_decode($response->getBody(), true);
+                $this->ameiseLogStatus && \Helper::log($logContext, 'Request failed with status code: ' . $response->getStatusCode());
+                $this->ameiseLogStatus && \Helper::log($logContext, 'Error response: ' . json_encode($errorResponse));
+            }
+            $this->ameiseLogStatus && \Helper::log($logContext, 'Request completed.');
+        } catch (Exception $e) {
+            $this->ameiseLogStatus && \Helper::logException($e, $logContext);
+            if ($e->getCode() === 401) {
+                $this->tokenService->disconnectAmeise();
+            }
+            if ($e->hasResponse()) {
+                $body = (string) $e->getResponse()->getBody();
+                $this->ameiseLogStatus && \Helper::log($logContext, 'Error body: ' . $body);
+            }
+            return $errorReturn;
+        }
+        return [];
+    }
+
     private function maUrl($path)
     {
         return $this->base_url . $this->tokenService->getMa() . '/' . $path;
@@ -98,9 +138,19 @@ class CrmApiClient
 
     public function fetchUserByEmail($email)
     {
-        return $this->apiGet(
+        $response = $this->apiPost(
             'kunden/_search',
             'fetch_user_email',
+            ['json' => ['mail' => $email]]
+        );
+
+        if (!empty($response)) {
+            return $response;
+        }
+
+        return $this->apiGet(
+            'kunden/_search',
+            'fetch_user_email_fallback',
             ['query' => ['mail' => $email]]
         );
     }
