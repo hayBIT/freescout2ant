@@ -75,7 +75,10 @@ class TokenService
                 $tokens = json_decode(file_get_contents(storage_path($this->file)));
                 $this->access_token = $tokens->access_token ?? '';
             }
-            $this->ameiseLogStatus && \Helper::log('token_end_point', 'Access token retrieved successfully.' . $this->access_token);
+            $this->ameiseLogStatus && \Helper::log(
+                'token_end_point',
+                'Access token retrieved successfully. Fingerprint: ' . $this->tokenFingerprint($this->access_token)
+            );
             return $this->access_token;
         } catch (\Exception $e) {
             $this->ameiseLogStatus && \Helper::logException($e, 'token_end_point');
@@ -163,7 +166,10 @@ class TokenService
     {
         try {
             $tokens = json_decode(file_get_contents(storage_path($this->file)));
-            $this->ameiseLogStatus && \Helper::log('user_info', 'Sending a userinfo request with access token: ' . $this->access_token);
+            $this->ameiseLogStatus && \Helper::log(
+                'user_info',
+                'Sending a userinfo request with access token fingerprint: ' . $this->tokenFingerprint($this->access_token)
+            );
             $client = new Client();
             $response = $client->get($this->url . '/userinfo', [
                 'headers' => [
@@ -231,5 +237,14 @@ class TokenService
     public function getMa()
     {
         return $this->ma;
+    }
+
+    private function tokenFingerprint(?string $token): string
+    {
+        if (empty($token)) {
+            return '[empty]';
+        }
+
+        return 'sha256:' . substr(hash('sha256', $token), 0, 12);
     }
 }
