@@ -7,8 +7,50 @@ $(document).ready(function() {
         const archive_btn = $('#archive_btn');
 
         const input = document.getElementById('crm_user');
-        const awesomeList = new Awesomplete(input, { });
+        const awesomeList = new Awesomplete(input, {
+            minChars: 0,
+            autoFirst: true
+        });
         let dataList = [];
+
+        function applySuggestions(data) {
+            dataList = data.crmUsers || [];
+            searchIcon.hide();
+            const suggestions = dataList.map(item => ({
+                id: item.id,
+                text: item.text
+            }));
+            input.setAttribute('data-list', suggestions.map(item => item.text).join(','));
+            awesomeList.list = suggestions.map(item => item.text);
+            awesomeList.evaluate();
+        }
+
+        function loadSuggestionsByConversationEmail() {
+            const conversationId = document.body.getAttribute('data-conversation_id');
+            if (!conversationId) {
+                return;
+            }
+            searchIcon.show();
+            fetch("/ameise/ajax", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded",
+                },
+                body: `search=&search_by_mail=1&conversation_id=${encodeURIComponent(conversationId)}&action=crm_users_search&_token=${encodeURIComponent(csrfToken)}`,
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error === 'Redirect') {
+                        window.open(data.url, '_blank');
+                        return;
+                    }
+                    applySuggestions(data);
+                })
+                .catch(() => searchIcon.hide());
+        }
+
+        loadSuggestionsByConversationEmail();
+
         input.addEventListener('input', function () {
         searchIcon.show();
         const inputValue = input.value;
@@ -26,15 +68,7 @@ $(document).ready(function() {
                     window.open(data.url, '_blank');
 
                 } else {
-                    dataList = data.crmUsers;
-                    searchIcon.hide();
-                    const suggestions = dataList.map(item => ({
-                        id: item.id, // Assuming "id" is the property containing the ID
-                        text: item.text // Assuming "text" is the property containing the text
-                    }));
-                    input.setAttribute('data-list', suggestions.map(item => item.text).join(','));
-                    awesomeList.list = suggestions.map(item => item.text);
-                    awesomeList.evaluate();
+                    applySuggestions(data);
                 }
             })
             .catch(error => $('#result').html('An error occurred while fetching data.'));
