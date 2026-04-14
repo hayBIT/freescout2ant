@@ -38,14 +38,31 @@ class ArchiveThreads extends Command
      */
     public function handle()
     {
-        // IDs aller archivierten Konversationen
-        $conversationIds = CrmArchiveThread::distinct()->pluck('conversation_id')->toArray();
-        // IDs aller Threads, die bereits archiviert wurden
-        $threadIds = CrmArchiveThread::distinct()->pluck('thread_id')->toArray();
+        // IDs aller Konversationen, die im CRM archiviert wurden
+        $conversationIds = CrmArchive::distinct()->pluck('conversation_id')->toArray();
+
+        if (empty($conversationIds)) {
+            return;
+        }
+
+        // IDs aller Threads, die erfolgreich archiviert wurden (ohne Fehler)
+        $successfulThreadIds = CrmArchiveThread::whereNull('last_error')
+            ->distinct()
+            ->pluck('thread_id')
+            ->toArray();
+
+        // IDs aller Threads, die mindestens einen Fehler haben (Retry nötig)
+        $failedThreadIds = CrmArchiveThread::whereNotNull('last_error')
+            ->distinct()
+            ->pluck('thread_id')
+            ->toArray();
+
+        // Threads, die vollständig erledigt sind (erfolgreich UND keine Fehler)
+        $fullyDoneThreadIds = array_diff($successfulThreadIds, $failedThreadIds);
 
         $threads = Thread::select('threads.*')
             ->where('state', Thread::STATE_PUBLISHED)
-            ->whereNotIn('threads.id', $threadIds)
+            ->whereNotIn('threads.id', $fullyDoneThreadIds)
             ->whereIn('threads.conversation_id', $conversationIds)
             ->with(['conversation', 'attachments'])
             ->get();
@@ -59,7 +76,11 @@ class ArchiveThreads extends Command
             $users = User::whereIn('id', $archives)->get();
 
             foreach ($users as $user) {
-                // Dispatch des Jobs
+                // Nutzer ohne Token-Datei überspringen (nicht verbunden)
+                if (!file_exists(storage_path("user_{$user->id}_ant.txt"))) {
+                    continue;
+                }
+
                 ArchiveThreadsJob::dispatch($thread->conversation, $thread, $user);
             }
         }

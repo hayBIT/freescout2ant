@@ -187,7 +187,8 @@ class CrmApiClient
         try {
             $tokenError = $this->checkTokenError();
             if ($tokenError) {
-                return $tokenError;
+                $this->ameiseLogStatus && \Helper::log('conversation_archive', 'Skipping archive due to token error');
+                return false;
             }
             $this->ameiseLogStatus && \Helper::log('conversation_archive', 'Archive conversation request called.');
             $headers = [
