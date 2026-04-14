@@ -9,7 +9,7 @@
     src="{{ Module::getPublicPath(AMEISE_MODULE) . '/images/ameise_icon_bold_red.svg' }}"></a>
 @endif
 <link href="{{ asset(Module::getPublicPath(AMEISE_MODULE) . '/css/style.css') }}" rel="stylesheet" type="text/css">
-<input type="hidden" id="ameise_base_url" value="{{ (config('ameisemodule.ameise_mode') == 'test' ? 'https://maklerinfo.inte.dionera.dev/' : 'https://www.maklerinfo.biz/') }}">
+<input type="hidden" id="ameise_base_url" value="{{ (config('ameisemodule.ameise_mode') == 'test' ? 'https://maklerinfo.inte.dionera.dev/' : 'https://ameise.app/') }}">
 @section('javascripts')
     @parent
     <link href="{{ asset(Module::getPublicPath(AMEISE_MODULE) . '/css/awesomplete.css') }}" rel="stylesheet"

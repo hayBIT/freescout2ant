@@ -41,7 +41,7 @@
 
                             <div class="conversation-archives">
                                 <a style="font-size:14px;" target="_blank"
-                                   href="{{ (config('ameisemodule.ameise_mode') == 'test' ? 'https://maklerinfo.inte.dionera.dev' : 'https://www.maklerinfo.biz') }}/maklerportal/?show=kunde&kunde={{ $user['id'] ?? '' }}">
+                                   href="{{ (config('ameisemodule.ameise_mode') == 'test' ? 'https://maklerinfo.inte.dionera.dev' : 'https://ameise.app') }}/maklerportal/?show=kunde&kunde={{ $user['id'] ?? '' }}">
                                     <p>{{ $user['text'] ?? '' }}</p>
                                 </a>
 
