@@ -139,6 +139,12 @@ class AmeiseController extends Controller
             if (!empty($conversation->customer_email)) {
                 $response = $this->apiClient->fetchUserByEmail($conversation->customer_email);
             }
+            if (empty($response) && $conversation) {
+                $customerNumber = $this->extractCustomerNumberFromConversation($conversation);
+                if (!empty($customerNumber)) {
+                    $response = $this->apiClient->fetchUserByIdOrName($customerNumber);
+                }
+            }
         }
 
         if (empty($response)) {
@@ -180,6 +186,41 @@ class AmeiseController extends Controller
         }
         $result['crmUsers'] = $crmUsers;
         return response()->json($result);
+    }
+
+    private function extractCustomerNumberFromConversation($conversation)
+    {
+        $searchableTexts = [];
+        if (!empty($conversation->subject)) {
+            $searchableTexts[] = $conversation->subject;
+        }
+
+        foreach ($conversation->threads as $thread) {
+            if (!empty($thread->body)) {
+                $searchableTexts[] = $thread->body;
+            }
+        }
+
+        foreach ($searchableTexts as $text) {
+            $customerNumber = $this->extractCustomerNumber((string) $text);
+            if (!empty($customerNumber)) {
+                return $customerNumber;
+            }
+        }
+
+        return null;
+    }
+
+    private function extractCustomerNumber($text)
+    {
+        $normalizedText = html_entity_decode($text, ENT_QUOTES | ENT_HTML5);
+        $normalizedText = strip_tags($normalizedText);
+
+        if (preg_match('/\b5\d{9}\b/', $normalizedText, $matches) === 1) {
+            return $matches[0];
+        }
+
+        return null;
     }
 
     private function getFSUsers($inputs)
