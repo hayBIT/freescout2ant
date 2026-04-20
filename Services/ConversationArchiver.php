@@ -129,42 +129,85 @@ class ConversationArchiver
     {
         $thread =  $thread ?? $conversation->getLastThread();
         $user = $user ?? auth()->user();
-        if ($this->shouldArchiveThread($conversation, $thread)) {
-            $crmArchives = CrmArchive::where('conversation_id', $conversation->id)->get();
-            if (count($crmArchives) > 0) {
-                foreach ($crmArchives as $crmArchive) {
-                    $isArchiveThread = CrmArchiveThread::where('crm_archive_id', $crmArchive->id)->where('thread_id',$thread->id)->first();
-                    if(!$isArchiveThread){
-                        $contracts = !empty($crmArchive->contracts) ? json_decode($crmArchive->contracts, true) : [];
-                        $divisions = !empty($crmArchive->divisions) ? json_decode($crmArchive->divisions, true) : [];
-                        $conversation_data = $this->createConversationData($conversation, $crmArchive->crm_user_id, $contracts, $divisions, $thread, $user);
-                        $scanOnly = $this->isScanOnly($conversation);
-                        $archived = $scanOnly ? true : $this->apiClient->archiveConversation($conversation_data);
-                        if($archived) {
-                            $this->archiveConversationWithAttachments($thread, $conversation_data, $user);
-                            CrmArchiveThread::create(['crm_archive_id' => $crmArchive->id,'thread_id' => $thread->id,'conversation_id'=> $conversation->id ]);
-                        }
-                    }
-                }
-            } else {
-                $response = $this->apiClient->fetchUserByEmail($conversation->customer_email);
-                if (count($response) == 1) {
-                    $crm_user_id = $response[0]['Id'];
-                    $conversation_data  = $this->createConversationData($conversation, $crm_user_id, [], [], $thread, $user);
-                    $scanOnly = $this->isScanOnly($conversation);
-                    $archived = $scanOnly ? true : $this->apiClient->archiveConversation($conversation_data);
-                    if($archived) {
-                        $this->archiveConversationWithAttachments($thread, $conversation_data, $user);
-                        $crm_archive = CrmArchive::firstOrNew(['conversation_id' => $conversation->id, 'crm_user_id' => $crm_user_id,'archived_by' => $user->id]);
-                        $crm_archive->crm_user = json_encode(['id' => $crm_user_id, 'text' => $response[0]['Text']]);
-                        $crm_archive->contracts = null;
-                        $crm_archive->divisions = null;
-                        $crm_archive->save();
-                        CrmArchiveThread::create(['crm_archive_id' => $crm_archive->id,'thread_id' => $thread->id,'conversation_id'=> $conversation->id ]);
-                    }
-                }
-            }
+        if (!$this->shouldArchiveThread($conversation, $thread)) {
+            return;
         }
 
+        $crmArchives = CrmArchive::where('conversation_id', $conversation->id)->get();
+        if (count($crmArchives) > 0) {
+            foreach ($crmArchives as $crmArchive) {
+                $contracts = !empty($crmArchive->contracts) ? json_decode($crmArchive->contracts, true) : [];
+                $divisions = !empty($crmArchive->divisions) ? json_decode($crmArchive->divisions, true) : [];
+                $this->archiveForCrmArchive($crmArchive, $conversation, $thread, $user, $contracts, $divisions);
+            }
+            return;
+        }
+
+        $response = $this->apiClient->fetchUserByEmail($conversation->customer_email);
+        if (count($response) != 1) {
+            return;
+        }
+
+        $crm_user_id = $response[0]['Id'];
+        $crm_archive = CrmArchive::firstOrNew([
+            'conversation_id' => $conversation->id,
+            'crm_user_id' => $crm_user_id,
+            'archived_by' => $user->id,
+        ]);
+        $crm_archive->crm_user = json_encode(['id' => $crm_user_id, 'text' => $response[0]['Text']]);
+        $crm_archive->contracts = null;
+        $crm_archive->divisions = null;
+        $crm_archive->save();
+
+        $this->archiveForCrmArchive($crm_archive, $conversation, $thread, $user, [], []);
+    }
+
+    private function archiveForCrmArchive(CrmArchive $crmArchive, $conversation, $thread, $user, array $contracts, array $divisions): void
+    {
+        $archiveThread = CrmArchiveThread::firstOrNew([
+            'crm_archive_id' => $crmArchive->id,
+            'thread_id' => $thread->id,
+        ]);
+
+        if (!is_null($archiveThread->archived_at)) {
+            return;
+        }
+
+        $conversation_data = $this->createConversationData($conversation, $crmArchive->crm_user_id, $contracts, $divisions, $thread, $user);
+        [$archived, $lastError] = $this->attemptArchiveConversation($conversation, $conversation_data);
+
+        $archiveThread->conversation_id = $conversation->id;
+        $archiveThread->last_attempt_at = Carbon::now();
+        $archiveThread->last_error = $lastError;
+
+        if ($archived) {
+            $this->archiveConversationWithAttachments($thread, $conversation_data, $user);
+            $archiveThread->archived_at = Carbon::now();
+        }
+
+        $archiveThread->save();
+    }
+
+    private function attemptArchiveConversation($conversation, array $conversationData): array
+    {
+        if ($this->isScanOnly($conversation)) {
+            return [true, null];
+        }
+
+        $result = $this->apiClient->archiveConversation($conversationData);
+
+        if ($result === false || $result === null) {
+            return [false, 'Archivierung fehlgeschlagen'];
+        }
+
+        if (is_array($result) && isset($result['error'])) {
+            $error = $result['error'];
+            if (!empty($result['url'])) {
+                $error .= ': ' . $result['url'];
+            }
+            return [false, $error];
+        }
+
+        return [true, null];
     }
 }

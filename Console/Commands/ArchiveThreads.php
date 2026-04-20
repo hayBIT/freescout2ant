@@ -5,8 +5,7 @@ namespace Modules\AmeiseModule\Console\Commands;
 use App\Thread;
 use App\User;
 use Illuminate\Console\Command;
-use Modules\AmeiseModule\Entities\CrmArchive;
-use Modules\AmeiseModule\Entities\CrmArchiveThread;
+use Illuminate\Support\Facades\DB;
 use Modules\AmeiseModule\Jobs\ArchiveThreadsJob;
 
 class ArchiveThreads extends Command
@@ -38,30 +37,39 @@ class ArchiveThreads extends Command
      */
     public function handle()
     {
-        // IDs aller archivierten Konversationen
-        $conversationIds = CrmArchiveThread::distinct()->pluck('conversation_id')->toArray();
-        // IDs aller Threads, die bereits archiviert wurden
-        $threadIds = CrmArchiveThread::distinct()->pluck('thread_id')->toArray();
-
-        $threads = Thread::select('threads.*')
-            ->where('state', Thread::STATE_PUBLISHED)
-            ->whereNotIn('threads.id', $threadIds)
-            ->whereIn('threads.conversation_id', $conversationIds)
-            ->with(['conversation', 'attachments'])
+        // (archive_id, thread_id)-Paare, für die noch kein erfolgreicher Archivierungseintrag existiert.
+        $pendingPairs = DB::table('crm_archives')
+            ->join('threads', function ($join) {
+                $join->on('threads.conversation_id', '=', 'crm_archives.conversation_id')
+                    ->where('threads.state', '=', Thread::STATE_PUBLISHED);
+            })
+            ->leftJoin('crm_archive_threads', function ($join) {
+                $join->on('crm_archive_threads.crm_archive_id', '=', 'crm_archives.id')
+                    ->on('crm_archive_threads.thread_id', '=', 'threads.id');
+            })
+            ->whereNotNull('crm_archives.archived_by')
+            ->whereNull('crm_archive_threads.archived_at')
+            ->select('crm_archives.id as archive_id', 'crm_archives.archived_by', 'threads.id as thread_id')
             ->get();
 
-        foreach ($threads as $thread) {
-            $archives = CrmArchive::where('conversation_id', $thread->conversation_id)
-                ->groupBy('archived_by')
-                ->pluck('archived_by')
-                ->toArray();
+        if ($pendingPairs->isEmpty()) {
+            return;
+        }
 
-            $users = User::whereIn('id', $archives)->get();
+        $users = User::whereIn('id', $pendingPairs->pluck('archived_by')->unique())->get()->keyBy('id');
+        $threads = Thread::with(['conversation', 'attachments'])
+            ->whereIn('id', $pendingPairs->pluck('thread_id')->unique())
+            ->get()
+            ->keyBy('id');
 
-            foreach ($users as $user) {
-                // Dispatch des Jobs
-                ArchiveThreadsJob::dispatch($thread->conversation, $thread, $user);
+        foreach ($pendingPairs as $pair) {
+            $user = $users->get($pair->archived_by);
+            $thread = $threads->get($pair->thread_id);
+            if (!$user || !$thread || !$thread->conversation) {
+                continue;
             }
+
+            ArchiveThreadsJob::dispatch($thread->conversation, $thread, $user);
         }
     }
 }

@@ -11,6 +11,11 @@ class CrmArchiveThread extends Model
 {
     protected $guarded = ['id'];
     protected $table = 'crm_archive_threads';
+    protected $casts = [
+        'last_attempt_at' => 'datetime',
+        'archived_at' => 'datetime',
+    ];
+
     public function conversation()
     {
         return $this->belongsTo(Conversation::class);
