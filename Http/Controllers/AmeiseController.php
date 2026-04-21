@@ -138,13 +138,23 @@ class AmeiseController extends Controller
             $conversation = Conversation::find($inputs['conversation_id']);
             if (!empty($conversation->customer_email)) {
                 $response = $this->apiClient->fetchUserByEmail($conversation->customer_email);
-            }
-            if (empty($response) && $conversation) {
-                $customerNumber = $this->extractCustomerNumberFromConversation($conversation);
-                if (!empty($customerNumber)) {
-                    $response = $this->apiClient->fetchUserByIdOrName($customerNumber);
+                if (isset($response['error']) && isset($response['url'])) {
+                    return response()->json(['error' => 'Redirect', 'url' => $response['url']]);
                 }
             }
+            if ($conversation) {
+                $customerNumbers = $this->extractCustomerNumbersFromConversation($conversation);
+                foreach ($customerNumbers as $customerNumber) {
+                    $customerResponse = $this->apiClient->fetchUserByIdOrName($customerNumber);
+                    if (isset($customerResponse['error']) && isset($customerResponse['url'])) {
+                        return response()->json(['error' => 'Redirect', 'url' => $customerResponse['url']]);
+                    }
+                    if (!empty($customerResponse)) {
+                        $response = array_merge($response, $customerResponse);
+                    }
+                }
+            }
+            $response = $this->uniqueCrmUsersById($response);
         }
 
         if (empty($response)) {
@@ -188,7 +198,7 @@ class AmeiseController extends Controller
         return response()->json($result);
     }
 
-    private function extractCustomerNumberFromConversation($conversation)
+    private function extractCustomerNumbersFromConversation($conversation)
     {
         $searchableTexts = [];
         if (!empty($conversation->subject)) {
@@ -201,26 +211,40 @@ class AmeiseController extends Controller
             }
         }
 
+        $customerNumbers = [];
+
         foreach ($searchableTexts as $text) {
-            $customerNumber = $this->extractCustomerNumber((string) $text);
-            if (!empty($customerNumber)) {
-                return $customerNumber;
+            $numbers = $this->extractCustomerNumbers((string) $text);
+            if (!empty($numbers)) {
+                $customerNumbers = array_merge($customerNumbers, $numbers);
             }
         }
 
-        return null;
+        return array_values(array_unique($customerNumbers));
     }
 
-    private function extractCustomerNumber($text)
+    private function extractCustomerNumbers($text)
     {
         $normalizedText = html_entity_decode($text, ENT_QUOTES | ENT_HTML5);
         $normalizedText = strip_tags($normalizedText);
 
-        if (preg_match('/\b5\d{9}\b/', $normalizedText, $matches) === 1) {
-            return $matches[0];
+        if (preg_match_all('/\b5\d{9}\b/', $normalizedText, $matches) > 0) {
+            return array_values(array_unique($matches[0]));
         }
 
-        return null;
+        return [];
+    }
+
+    private function uniqueCrmUsersById(array $users)
+    {
+        $uniqueUsers = [];
+        foreach ($users as $user) {
+            if (isset($user['Id'])) {
+                $uniqueUsers[$user['Id']] = $user;
+            }
+        }
+
+        return array_values($uniqueUsers);
     }
 
     private function getFSUsers($inputs)
