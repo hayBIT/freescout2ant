@@ -135,7 +135,7 @@ class AmeiseController extends Controller
     {
         $response = [];
         if (!empty($inputs['search_by_mail']) && !empty($inputs['conversation_id'])) {
-            $conversation = Conversation::find($inputs['conversation_id']);
+            $conversation = Conversation::with('threads')->find($inputs['conversation_id']);
             if (!empty($conversation->customer_email)) {
                 $response = $this->apiClient->fetchUserByEmail($conversation->customer_email);
                 if (isset($response['error']) && isset($response['url'])) {
@@ -225,10 +225,21 @@ class AmeiseController extends Controller
 
     private function extractCustomerNumbers($text)
     {
-        $normalizedText = html_entity_decode($text, ENT_QUOTES | ENT_HTML5);
-        $normalizedText = strip_tags($normalizedText);
+        $decodedText = html_entity_decode($text, ENT_QUOTES | ENT_HTML5);
+        $decodedUrlText = rawurldecode($decodedText);
+        $plainText = strip_tags($decodedText);
 
-        if (preg_match_all('/\b5\d{9}\b/', $normalizedText, $matches) > 0) {
+        // Search both the rendered text and the original HTML so customer numbers
+        // in signatures, hidden spans, or link attributes (for example kid=...)
+        // are detected.
+        $searchableText = implode(' ', array_unique([
+            $text,
+            $decodedText,
+            $decodedUrlText,
+            $plainText,
+        ]));
+
+        if (preg_match_all('/(?<!\d)5\d{9}(?!\d)/', $searchableText, $matches) > 0) {
             return array_values(array_unique($matches[0]));
         }
 
