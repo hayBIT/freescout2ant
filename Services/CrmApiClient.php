@@ -187,7 +187,8 @@ class CrmApiClient
         try {
             $tokenError = $this->checkTokenError();
             if ($tokenError) {
-                return $tokenError;
+                $this->ameiseLogStatus && \Helper::log('conversation_archive', 'Archive conversation skipped because token contains an error.');
+                return false;
             }
             $this->ameiseLogStatus && \Helper::log('conversation_archive', 'Archive conversation request called.');
             $headers = [
@@ -204,8 +205,8 @@ class CrmApiClient
                 'body' => $data['body'],
             ]);
             $this->ameiseLogStatus && \Helper::log('conversation_archive', 'Response status: ' . $response->getStatusCode());
-            if ($response->getStatusCode() === 200) {
-                return $response->getBody();
+            if ($response->getStatusCode() >= 200 && $response->getStatusCode() < 300) {
+                return true;
             } elseif ($response->getStatusCode() === 401) {
                 $this->tokenService->disconnectAmeise();
             } else {
