@@ -92,6 +92,7 @@ class AmeiseController extends Controller
                 $crm_archive->divisions = $inputs['divisions_data'];
                 $crm_archive->save();
                 $conversation = Conversation::with('threads.all_attachments')->find($inputs['conversation_id']);
+                $allArchived = true;
                 foreach($conversation->threads as $thread) {
                     $isArchiveThread = CrmArchiveThread::where('crm_archive_id', $crm_archive->id)->where('thread_id',$thread->id)->first();
                     if(!$isArchiveThread){
@@ -102,14 +103,16 @@ class AmeiseController extends Controller
                             $conversation_data = $this->archiver->createConversationData($conversation, $crm_user_id, $contracts, $divisions, $thread);
                             $scanOnly = $this->archiver->isScanOnly($conversation);
                             $archived = $scanOnly ? true : $this->apiClient->archiveConversation($conversation_data);
-                            if($archived) {
-                                $this->archiver->archiveConversationWithAttachments($thread, $conversation_data);
+                            $attachmentsArchived = $archived ? $this->archiver->archiveConversationWithAttachments($thread, $conversation_data) : false;
+                            if($archived && (!$scanOnly || $attachmentsArchived)) {
                                 CrmArchiveThread::create(['crm_archive_id' => $crm_archive->id,'thread_id' => $thread->id,'conversation_id'=> $conversation->id ]);
+                            } else {
+                                $allArchived = false;
                             }
                         }
                     }
                 }
-                return response()->json(['status' => true]);
+                return response()->json(['status' => $allArchived]);
                 break;
 
         }
