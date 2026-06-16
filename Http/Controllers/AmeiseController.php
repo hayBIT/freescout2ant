@@ -12,7 +12,10 @@ use Modules\AmeiseModule\Services\TokenService;
 use Modules\AmeiseModule\Services\CrmApiClient;
 use Modules\AmeiseModule\Services\ConversationArchiver;
 use Modules\AmeiseModule\Entities\CrmArchive;
+use Modules\AmeiseModule\Entities\CrmArchiveAttempt;
 use Modules\AmeiseModule\Entities\CrmArchiveThread;
+use Modules\AmeiseModule\Jobs\ArchiveThreadsJob;
+use App\User;
 
 class AmeiseController extends Controller
 {
@@ -259,6 +262,48 @@ class AmeiseController extends Controller
         }
 
         return array_values($uniqueUsers);
+    }
+
+    public function retryArchiveAttempt($id)
+    {
+        $attempt = CrmArchiveAttempt::find($id);
+        if (!$attempt) {
+            return response()->json(['status' => 'not_found'], 404);
+        }
+
+        $thread = Thread::find($attempt->thread_id);
+        $conversation = Conversation::find($attempt->conversation_id);
+        $user = User::find($attempt->user_id);
+
+        if (!$thread || !$conversation || !$user) {
+            return response()->json(['status' => 'missing_relations'], 422);
+        }
+
+        ArchiveThreadsJob::dispatch($conversation, $thread, $user);
+        CrmArchiveAttempt::record([
+            'conversation_id' => $conversation->id,
+            'thread_id' => $thread->id,
+            'user_id' => $user->id,
+            'status' => CrmArchiveAttempt::STATUS_PENDING,
+            'reason' => 'Manuell neu eingereiht aus Settings (Attempt #' . $attempt->id . ')',
+        ]);
+
+        return response()->json(['status' => 'queued']);
+    }
+
+    public function dismissArchiveAttempt($id)
+    {
+        $attempt = CrmArchiveAttempt::find($id);
+        if (!$attempt) {
+            return response()->json(['status' => 'not_found'], 404);
+        }
+
+        CrmArchiveAttempt::where('thread_id', $attempt->thread_id)
+            ->where('user_id', $attempt->user_id)
+            ->whereNull('resolved_at')
+            ->update(['resolved_at' => now()]);
+
+        return response()->json(['status' => 'dismissed']);
     }
 
     private function getFSUsers($inputs)

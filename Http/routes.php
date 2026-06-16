@@ -6,5 +6,7 @@ Route::group(['middleware' => 'web', 'prefix' => \Helper::getSubdirectory(), 'na
     Route::post('/ameise/ajax', ['uses' => 'AmeiseController@ajax', 'laroute' => true])->name('ameise.ajax');
     Route::get('/ameise/refresh-token', ['uses' => 'AmeiseController@refreshToken'])->name('ameise.refresh');
     Route::get('/crm/auth', ['uses' => 'AmeiseModuleController@auth', 'laroute' => true])->name('crm.auth');
+    Route::post('/ameise/archive-attempts/{id}/retry', ['uses' => 'AmeiseController@retryArchiveAttempt'])->name('ameise.archive_attempts.retry');
+    Route::post('/ameise/archive-attempts/{id}/dismiss', ['uses' => 'AmeiseController@dismissArchiveAttempt'])->name('ameise.archive_attempts.dismiss');
 
 });
