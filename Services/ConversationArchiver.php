@@ -19,6 +19,20 @@ class ConversationArchiver
 
     public function shouldArchiveThread($conversation, $thread)
     {
+        // Never archive system line items (status changes, assignments, etc.).
+        // They carry no real content, so the CRM rejects them and the whole
+        // archive run would be reported as failed (dialog stays open).
+        if ($thread->type == Thread::TYPE_LINEITEM) {
+            return false;
+        }
+
+        // Skip threads that are not actually sent yet (e.g. auto-saved drafts).
+        // Archiving an unsent draft pushes incomplete content to the CRM and may
+        // fail, which would otherwise keep the archive dialog from closing.
+        if (isset($thread->state) && $thread->state != Thread::STATE_PUBLISHED) {
+            return false;
+        }
+
         if ($thread->type !== Thread::TYPE_NOTE) {
             return true;
         }
