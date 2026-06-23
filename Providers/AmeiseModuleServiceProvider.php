@@ -10,6 +10,8 @@ use Config;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\Event;
 use Modules\AmeiseModule\Console\Commands\ArchiveThreads;
+use Modules\AmeiseModule\Console\Commands\ListFailedArchives;
+use Modules\AmeiseModule\Console\Commands\RetryFailedArchives;
 defined('AMEISE_MODULE') || define('AMEISE_MODULE', 'ameisemodule');
 
 class AmeiseModuleServiceProvider extends ServiceProvider
@@ -33,6 +35,8 @@ class AmeiseModuleServiceProvider extends ServiceProvider
         $this->registerFactories();
         $this->commands([
             ArchiveThreads::class,
+            ListFailedArchives::class,
+            RetryFailedArchives::class,
         ]);
         $this->loadMigrationsFrom(__DIR__ . '/../Database/Migrations');
         $this->hooks();

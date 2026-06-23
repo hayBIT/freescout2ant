@@ -6,41 +6,24 @@ use App\Thread;
 use App\User;
 use Illuminate\Console\Command;
 use Modules\AmeiseModule\Entities\CrmArchive;
+use Modules\AmeiseModule\Entities\CrmArchiveAttempt;
 use Modules\AmeiseModule\Entities\CrmArchiveThread;
 use Modules\AmeiseModule\Jobs\ArchiveThreadsJob;
 
 class ArchiveThreads extends Command
 {
-    /**
-     * The name and signature of the console command.
-     *
-     * @var string
-     */
     protected $signature = 'ameise:archive-threads';
 
-    /**
-     * The console command description.
-     *
-     * @var string
-     */
     protected $description = 'Archiviere neue Threads ins CRM für alle Nutzer, die die Konversation archiviert haben';
 
-    /**
-     * Create a new command instance.
-     */
     public function __construct()
     {
         parent::__construct();
     }
 
-    /**
-     * Execute the console command.
-     */
     public function handle()
     {
-        // IDs aller archivierten Konversationen
         $conversationIds = CrmArchiveThread::distinct()->pluck('conversation_id')->toArray();
-        // IDs aller Threads, die bereits archiviert wurden
         $threadIds = CrmArchiveThread::distinct()->pluck('thread_id')->toArray();
 
         $threads = Thread::select('threads.*')
@@ -50,6 +33,7 @@ class ArchiveThreads extends Command
             ->with(['conversation', 'attachments'])
             ->get();
 
+        $dispatched = 0;
         foreach ($threads as $thread) {
             $archives = CrmArchive::where('conversation_id', $thread->conversation_id)
                 ->groupBy('archived_by')
@@ -59,9 +43,20 @@ class ArchiveThreads extends Command
             $users = User::whereIn('id', $archives)->get();
 
             foreach ($users as $user) {
-                // Dispatch des Jobs
                 ArchiveThreadsJob::dispatch($thread->conversation, $thread, $user);
+                $dispatched++;
             }
         }
+
+        $pendingFailures = CrmArchiveAttempt::whereIn('status', CrmArchiveAttempt::FAILURE_STATUSES)
+            ->whereNull('resolved_at')
+            ->count();
+
+        $this->info(sprintf(
+            'ameise:archive-threads dispatched=%d threads=%d unresolved_failures=%d',
+            $dispatched,
+            $threads->count(),
+            $pendingFailures
+        ));
     }
 }
