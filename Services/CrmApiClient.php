@@ -191,8 +191,12 @@ class CrmApiClient
                 return false;
             }
             $this->ameiseLogStatus && \Helper::log('conversation_archive', 'Archive conversation request called.');
+            $subject = isset($data['subject']) ? trim((string) $data['subject']) : '';
+            if ($subject === '') {
+                $subject = '(Kein Betreff)';
+            }
             $headers = [
-                'X-Dio-Betreff' =>  $data['subject'],
+                'X-Dio-Betreff' =>  $subject,
                 'x-dio-metadaten' =>  json_encode($data['x-dio-metadaten']),
                 'X-Dio-Typ' => $data['type'],
                 'Content-Type' => $data['Content-Type'] ??  'text/plain; charset="utf-8"',
