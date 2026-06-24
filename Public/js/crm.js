@@ -88,6 +88,11 @@ $(document).ready(function() {
         });
     });
 
+    $('#ameise-modal').on('shown.bs.modal', function () {
+        // Cursor direkt ins Suchfeld setzen, damit man sofort lostippen kann.
+        $('#crm_user').trigger('focus');
+    });
+
     $('#ameise-modal').on('hidden.bs.modal', function () {
         location.reload();
     });
