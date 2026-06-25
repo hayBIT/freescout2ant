@@ -86,7 +86,7 @@ class AmeiseModuleServiceProvider extends ServiceProvider
     {
         $tokenService = new \Modules\AmeiseModule\Services\TokenService('', $userId);
         $apiClient = new \Modules\AmeiseModule\Services\CrmApiClient($tokenService);
-        return new \Modules\AmeiseModule\Services\ConversationArchiver($apiClient);
+        return new \Modules\AmeiseModule\Services\ConversationArchiver($apiClient, $tokenService);
     }
 
     private function archiveIfConnected($conversation)
@@ -144,6 +144,8 @@ class AmeiseModuleServiceProvider extends ServiceProvider
             $settings['ameise_mode'] = config('ameisemodule.ameise_mode');
             $settings['ameise_client_id'] = config('ameisemodule.ameise_client_id');
             $settings['ameise_redirect_uri'] = route('crm.auth');
+            $settings['ameise_api'] = config('ameisemodule.ameise_api');
+            $settings['ameise_archive_is_public'] = config('ameisemodule.ameise_archive_is_public');
 
             return $settings;
         }, 20, 2);
@@ -169,6 +171,12 @@ class AmeiseModuleServiceProvider extends ServiceProvider
                 ],
                 'ameise_log_status' => [
                     'env' => 'AMEISE_LOG_STATUS',
+                ],
+                'ameise_api' => [
+                    'env' => 'AMEISE_API',
+                ],
+                'ameise_archive_is_public' => [
+                    'env' => 'AMEISE_ARCHIVE_IS_PUBLIC',
                 ],
             ];
 

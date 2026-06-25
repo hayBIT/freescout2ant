@@ -1,5 +1,33 @@
+@php
+    $ameiseApi = old('settings[ameise_api]', $settings['ameise_api'] ?? 'mitarbeiterwebservice');
+    $ameiseIsPublic = filter_var($settings['ameise_archive_is_public'] ?? false, FILTER_VALIDATE_BOOLEAN);
+@endphp
 <form class="form-horizontal margin-top margin-bottom" method="POST" action="" enctype="multipart/form-data">
     {{ csrf_field() }}
+
+    <div class="form-group">
+        <label for="" class="col-sm-2 control-label">{{ __('Archive API') }}</label>
+
+        <div class="col-sm-6">
+            <select class="form-control" name="settings[ameise_api]">
+                <option value="mitarbeiterwebservice" {{ $ameiseApi == 'mitarbeiterwebservice' ? 'selected' : '' }}>{{ __('MitarbeiterWebservice') }}</option>
+                <option value="customer_archives" {{ $ameiseApi == 'customer_archives' ? 'selected' : '' }}>{{ __('Customer Archives') }}</option>
+            </select>
+            <p class="help-block">{{ __('Choose which Ameise API is used for reading customers/contracts and writing archive entries.') }}</p>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label for="" class="col-sm-2 control-label">{{ __('Public archive entries') }}</label>
+
+        <div class="col-sm-6">
+            <select class="form-control" name="settings[ameise_archive_is_public]">
+                <option value="false" {{ !$ameiseIsPublic ? 'selected' : '' }}>{{ __('No') }}</option>
+                <option value="true" {{ $ameiseIsPublic ? 'selected' : '' }}>{{ __('Yes') }}</option>
+            </select>
+            <p class="help-block">{{ __('Whether archive entries created via the Customer Archives API are visible to the customer (isPublic).') }}</p>
+        </div>
+    </div>
 
     <div class="form-group">
         <label for="" class="col-sm-2 control-label">{{ __('API Mode') }}</label>

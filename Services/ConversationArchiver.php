@@ -4,17 +4,19 @@ namespace Modules\AmeiseModule\Services;
 
 use App\Conversation;
 use App\Thread;
-use Carbon\Carbon;
 use Modules\AmeiseModule\Entities\CrmArchive;
 use Modules\AmeiseModule\Entities\CrmArchiveThread;
+use Modules\AmeiseModule\Services\Archive\ArchiveWriterFactory;
 
 class ConversationArchiver
 {
     private $apiClient;
+    private $tokenService;
 
-    public function __construct(CrmApiClient $apiClient)
+    public function __construct(CrmApiClient $apiClient, TokenService $tokenService)
     {
         $this->apiClient = $apiClient;
+        $this->tokenService = $tokenService;
     }
 
     public function shouldArchiveThread($conversation, $thread)
@@ -51,99 +53,6 @@ class ConversationArchiver
         return !is_null($firstThreadId) && (int) $thread->id === (int) $firstThreadId;
     }
 
-    public function createConversationData($conversation, $crm_user_id, $contracts, $divisions, $thread, $user = null)
-    {
-        $user = $user ?? auth()->user();
-        $userTimezone = $user->timezone;
-        $x_dio_metadaten = [];
-        $metaData = [
-            'An' => !empty($thread->to) ? json_decode($thread->to) : null,
-            'Von' => !empty($thread->from) ? $thread->from : ($conversation->mailbox_id ? $conversation->mailbox->email : null),
-            'CC' =>   !empty($thread->cc) ? json_decode($thread->cc) : null,
-            'BCC' =>    !empty($thread->bcc) ? json_decode($thread->bcc) : null,
-        ];
-        foreach ($metaData as $key => $value) {
-            $text = is_array($value) ? implode(', ', $value) : $value;
-            $x_dio_metadaten[] = ['Value' => $key, 'Text' => $text];
-        }
-
-        $body = $thread->body ?? '';
-        $body = html_entity_decode($body, ENT_QUOTES | ENT_HTML5);
-        $body = str_replace(['<li>', '</li>'], ["\n- ", ''], $body);
-        $body = preg_replace('/<br\s*\/?\s*>/i', "\n", $body);
-        $body = preg_replace('/<\/p>\s*<p>/i', "\n\n", $body);
-        $body = preg_replace('/<\/div>\s*<div>/i', "\n\n", $body);
-        $body = preg_replace('/<\/(p|div)>/i', "\n", $body);
-        $body = strip_tags($body);
-        $body = preg_replace('/\x{00A0}/u', ' ', $body);
-        $body = preg_replace("/\r\n|\r/", "\n", $body);
-        $body = preg_replace("/\n{3,}/", "\n\n", $body);
-        $body = str_replace("\n", "\r\n", $body);
-        
-        return [
-            'type' =>  ($conversation->type == Conversation::TYPE_EMAIL) ? 'email' : 'telefon',
-            'x-dio-metadaten' => $x_dio_metadaten,
-            'subject' => trim((string) ($conversation->subject ?? '')) !== ''
-                ? $conversation->subject
-                : '(Kein Betreff)',
-            'body' => $body,
-            'Content-Type' => 'text/plain; charset=utf-8',
-            'X-Dio-Datum' => Carbon::parse($thread->created_at)->setTimezone($userTimezone)->format('Y-m-d\TH:i:s'),
-            'X-Dio-Zuordnungen' => array_merge(
-                [['Typ' => 'kunde', 'Id' => $crm_user_id]],
-                !is_null($contracts) ? array_map(fn($contract) => ['Typ' => 'vertrag', 'Id' => $contract['id']], $contracts) : [],
-                !is_null($divisions) ? array_map(fn($division) => ['Typ' => 'sparte', 'Id' => $division['id']], $divisions) : []
-            ),
-        ];
-    }
-
-    public function archiveConversationWithAttachments($thread, $conversation_data, $user = null)
-    {
-        $allAttachments = $thread->attachments;
-        $user = $user ?? auth()->user();
-        $userTimezone = $user->timezone;
-        $allArchived = true;
-
-        if ($allAttachments->count() > 0) {
-            foreach ($allAttachments as $attachment) {
-                $path = storage_path("app/attachment/{$attachment['file_dir']}{$attachment['file_name']}");
-                if (!file_exists($path)) {
-                    \Helper::log('conversation_archive', 'Attachment file not found: ' . $path);
-                    $allArchived = false;
-                    continue;
-                }
-                $body = file_get_contents($path);
-                $mimeType = mime_content_type($path);
-                $subject = $attachment['file_name'];
-                if (strpos($mimeType, 'image/') === 0 && extension_loaded('imagick')) {
-                    try {
-                        $img = new \Imagick($path);
-                        $img->setImageFormat('pdf');
-                        $body = $img->getImagesBlob();
-                        $subject = pathinfo($subject, PATHINFO_FILENAME) . '.pdf';
-                    } catch (\Exception $e) {
-                        \Helper::log('conversation_archive', 'Failed to convert image to PDF: ' . $e->getMessage());
-                    }
-                }
-                $attachmentData = [
-                    'type' => 'dokument',
-                    'x-dio-metadaten' => $conversation_data['x-dio-metadaten'],
-                    'subject' => $subject,
-                    'body' => $body,
-                    'Content-Type' => 'application/pdf; name="freescout.pdf"',
-                    'X-Dio-Zuordnungen' => $conversation_data['X-Dio-Zuordnungen'],
-                    'X-Dio-Datum' => Carbon::parse($thread->created_at)->setTimezone($userTimezone)->format('Y-m-d\\TH:i:s')
-                ];
-                if (!$this->apiClient->archiveConversation($attachmentData)) {
-                    \Helper::log('conversation_archive', 'Failed to archive attachment: ' . $subject);
-                    $allArchived = false;
-                }
-            }
-        }
-
-        return $allArchived;
-    }
-
     public function isScanOnly($conversation)
     {
         return stripos($conversation->subject ?? '', '#scanonly') !== false;
@@ -151,44 +60,47 @@ class ConversationArchiver
 
     public function archiveConversationData($conversation, $thread = null, $user = null)
     {
-        $thread =  $thread ?? $conversation->getLastThread();
+        $thread = $thread ?? $conversation->getLastThread();
         $user = $user ?? auth()->user();
-        if ($this->shouldArchiveThread($conversation, $thread)) {
-            $crmArchives = CrmArchive::where('conversation_id', $conversation->id)->get();
-            if (count($crmArchives) > 0) {
-                foreach ($crmArchives as $crmArchive) {
-                    $isArchiveThread = CrmArchiveThread::where('crm_archive_id', $crmArchive->id)->where('thread_id',$thread->id)->first();
-                    if(!$isArchiveThread){
-                        $contracts = !empty($crmArchive->contracts) ? json_decode($crmArchive->contracts, true) : [];
-                        $divisions = !empty($crmArchive->divisions) ? json_decode($crmArchive->divisions, true) : [];
-                        $conversation_data = $this->createConversationData($conversation, $crmArchive->crm_user_id, $contracts, $divisions, $thread, $user);
-                        $scanOnly = $this->isScanOnly($conversation);
-                        $archived = $scanOnly ? true : $this->apiClient->archiveConversation($conversation_data);
-                        $attachmentsArchived = $archived ? $this->archiveConversationWithAttachments($thread, $conversation_data, $user) : false;
-                        if($archived && (!$scanOnly || $attachmentsArchived)) {
-                            CrmArchiveThread::create(['crm_archive_id' => $crmArchive->id,'thread_id' => $thread->id,'conversation_id'=> $conversation->id ]);
-                        }
-                    }
-                }
-            } else {
-                $response = $this->apiClient->fetchUserByEmail($conversation->customer_email);
-                if (count($response) == 1) {
-                    $crm_user_id = $response[0]['Id'];
-                    $conversation_data  = $this->createConversationData($conversation, $crm_user_id, [], [], $thread, $user);
-                    $scanOnly = $this->isScanOnly($conversation);
-                    $archived = $scanOnly ? true : $this->apiClient->archiveConversation($conversation_data);
-                    $attachmentsArchived = $archived ? $this->archiveConversationWithAttachments($thread, $conversation_data, $user) : false;
-                    if($archived && (!$scanOnly || $attachmentsArchived)) {
-                        $crm_archive = CrmArchive::firstOrNew(['conversation_id' => $conversation->id, 'crm_user_id' => $crm_user_id,'archived_by' => $user->id]);
-                        $crm_archive->crm_user = json_encode(['id' => $crm_user_id, 'text' => $response[0]['Text']]);
-                        $crm_archive->contracts = null;
-                        $crm_archive->divisions = null;
-                        $crm_archive->save();
-                        CrmArchiveThread::create(['crm_archive_id' => $crm_archive->id,'thread_id' => $thread->id,'conversation_id'=> $conversation->id ]);
+        if (!$this->shouldArchiveThread($conversation, $thread)) {
+            return;
+        }
+
+        $writer = ArchiveWriterFactory::make($this->apiClient, $this->tokenService);
+        $scanOnly = $this->isScanOnly($conversation);
+
+        $crmArchives = CrmArchive::where('conversation_id', $conversation->id)->get();
+        if (count($crmArchives) > 0) {
+            foreach ($crmArchives as $crmArchive) {
+                $isArchiveThread = CrmArchiveThread::where('crm_archive_id', $crmArchive->id)->where('thread_id', $thread->id)->first();
+                if (!$isArchiveThread) {
+                    $contracts = !empty($crmArchive->contracts) ? json_decode($crmArchive->contracts, true) : [];
+                    $divisions = !empty($crmArchive->divisions) ? json_decode($crmArchive->divisions, true) : [];
+                    $archived = $scanOnly ? true : $writer->archiveText($conversation, $thread, $crmArchive->crm_user_id, $contracts, $divisions, $user);
+                    $attachmentsArchived = $archived ? $writer->archiveAttachments($conversation, $thread, $crmArchive->crm_user_id, $contracts, $divisions, $user) : false;
+                    if ($archived && (!$scanOnly || $attachmentsArchived)) {
+                        CrmArchiveThread::create(['crm_archive_id' => $crmArchive->id, 'thread_id' => $thread->id, 'conversation_id' => $conversation->id]);
                     }
                 }
             }
+        } else {
+            // No archive record yet: resolve the customer by e-mail. The Stocks
+            // API cannot search by e-mail, so this lookup always uses the legacy
+            // MitarbeiterWebservice client (hybrid fallback).
+            $response = $this->apiClient->fetchUserByEmail($conversation->customer_email);
+            if (count($response) == 1) {
+                $crm_user_id = $response[0]['Id'];
+                $archived = $scanOnly ? true : $writer->archiveText($conversation, $thread, $crm_user_id, [], [], $user);
+                $attachmentsArchived = $archived ? $writer->archiveAttachments($conversation, $thread, $crm_user_id, [], [], $user) : false;
+                if ($archived && (!$scanOnly || $attachmentsArchived)) {
+                    $crm_archive = CrmArchive::firstOrNew(['conversation_id' => $conversation->id, 'crm_user_id' => $crm_user_id, 'archived_by' => $user->id]);
+                    $crm_archive->crm_user = json_encode(['id' => $crm_user_id, 'text' => $response[0]['Text']]);
+                    $crm_archive->contracts = null;
+                    $crm_archive->divisions = null;
+                    $crm_archive->save();
+                    CrmArchiveThread::create(['crm_archive_id' => $crm_archive->id, 'thread_id' => $thread->id, 'conversation_id' => $conversation->id]);
+                }
+            }
         }
-
     }
 }

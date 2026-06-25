@@ -31,7 +31,8 @@
                                 }
                                 if (empty($user) || $malformed) {
                                     $tokenService = new \Modules\AmeiseModule\Services\TokenService('', auth()->user()->id);
-                                    $client = new \Modules\AmeiseModule\Services\CrmApiClient($tokenService);
+                                    $apiClient = new \Modules\AmeiseModule\Services\CrmApiClient($tokenService);
+                                    $client = \Modules\AmeiseModule\Services\Read\ReadClientFactory::make($apiClient, $tokenService);
                                     $resp = $client->fetchUserByIdOrName($archive->crm_user_id);
                                     if (is_array($resp) && count($resp) > 0) {
                                         $user = ['id' => $resp[0]['Id'], 'text' => $resp[0]['Text']];

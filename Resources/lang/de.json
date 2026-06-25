@@ -1,0 +1,18 @@
+{
+    "Ameise": "Ameise",
+    "API Mode": "API-Umgebung",
+    "Test": "Test",
+    "Live": "Live",
+    "Client ID": "Client-ID",
+    "Client Secret": "Client-Secret",
+    "Redirect URL": "Redirect-URL",
+    "Save": "Speichern",
+    "Archive API": "Archiv-API",
+    "MitarbeiterWebservice": "MitarbeiterWebservice",
+    "Customer Archives": "Customer Archives",
+    "Choose which Ameise API is used for reading customers\/contracts and writing archive entries.": "Legt fest, welche Ameise-API für das Lesen von Kunden\/Verträgen und das Schreiben von Archiveinträgen verwendet wird.",
+    "Public archive entries": "Archiveinträge öffentlich",
+    "Whether archive entries created via the Customer Archives API are visible to the customer (isPublic).": "Ob über die Customer-Archives-API erstellte Archiveinträge für den Kunden sichtbar sind (isPublic).",
+    "No": "Nein",
+    "Yes": "Ja"
+}

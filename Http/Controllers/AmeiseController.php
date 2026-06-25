@@ -11,6 +11,8 @@ use Illuminate\Routing\Controller;
 use Modules\AmeiseModule\Services\TokenService;
 use Modules\AmeiseModule\Services\CrmApiClient;
 use Modules\AmeiseModule\Services\ConversationArchiver;
+use Modules\AmeiseModule\Services\Archive\ArchiveWriterFactory;
+use Modules\AmeiseModule\Services\Read\ReadClientFactory;
 use Modules\AmeiseModule\Entities\CrmArchive;
 use Modules\AmeiseModule\Entities\CrmArchiveThread;
 
@@ -19,13 +21,15 @@ class AmeiseController extends Controller
     protected $tokenService;
     protected $apiClient;
     protected $archiver;
+    protected $readClient;
 
     public function __construct()
     {
         $this->middleware(function ($request, $next) {
             $this->tokenService = $this->tokenService ?? new TokenService('', auth()->user()->id);
             $this->apiClient = new CrmApiClient($this->tokenService);
-            $this->archiver = new ConversationArchiver($this->apiClient);
+            $this->archiver = new ConversationArchiver($this->apiClient, $this->tokenService);
+            $this->readClient = ReadClientFactory::make($this->apiClient, $this->tokenService);
             return $next($request);
         });
 
@@ -53,12 +57,12 @@ class AmeiseController extends Controller
                 break;
 
             case 'get_contract':
-                $response = $this->apiClient->getContracts($request->input('client_id'));
+                $response = $this->readClient->getContracts($request->input('client_id'));
                 if (isset($response['error']) && isset($response['url'])) {
                     return response()->json(['error' => 'Redirect', 'url' => $response['url']]);
                 }
-                $divisionResponse = $this->apiClient->getContactEndPoints('sparten');
-                $statusResponse = $this->apiClient->getContactEndPoints('vertragsstatus');
+                $divisionResponse = $this->readClient->getContactEndPoints('sparten');
+                $statusResponse = $this->readClient->getContactEndPoints('vertragsstatus');
                 $groupedData = collect($response)->groupBy('Status')->map(function ($group) use ($divisionResponse, $statusResponse) {
                     return $group->map(function ($items) use ($divisionResponse, $statusResponse) {
                         $divisionKey = array_search($items['Sparte'], array_column($divisionResponse, 'Value'));
@@ -92,6 +96,7 @@ class AmeiseController extends Controller
                 $crm_archive->divisions = $inputs['divisions_data'];
                 $crm_archive->save();
                 $conversation = Conversation::with('threads.all_attachments')->find($inputs['conversation_id']);
+                $writer = ArchiveWriterFactory::make($this->apiClient, $this->tokenService);
                 $allArchived = true;
                 foreach($conversation->threads as $thread) {
                     $isArchiveThread = CrmArchiveThread::where('crm_archive_id', $crm_archive->id)->where('thread_id',$thread->id)->first();
@@ -100,10 +105,9 @@ class AmeiseController extends Controller
                             $crm_user_id = $inputs['customer_id'];
                             $contracts = json_decode($inputs['contracts'], true);
                             $divisions = json_decode($inputs['divisions_data'], true);
-                            $conversation_data = $this->archiver->createConversationData($conversation, $crm_user_id, $contracts, $divisions, $thread);
                             $scanOnly = $this->archiver->isScanOnly($conversation);
-                            $archived = $scanOnly ? true : $this->apiClient->archiveConversation($conversation_data);
-                            $attachmentsArchived = $archived ? $this->archiver->archiveConversationWithAttachments($thread, $conversation_data) : false;
+                            $archived = $scanOnly ? true : $writer->archiveText($conversation, $thread, $crm_user_id, $contracts, $divisions);
+                            $attachmentsArchived = $archived ? $writer->archiveAttachments($conversation, $thread, $crm_user_id, $contracts, $divisions) : false;
                             if($archived && (!$scanOnly || $attachmentsArchived)) {
                                 CrmArchiveThread::create(['crm_archive_id' => $crm_archive->id,'thread_id' => $thread->id,'conversation_id'=> $conversation->id ]);
                             } else {
@@ -148,7 +152,7 @@ class AmeiseController extends Controller
             if ($conversation) {
                 $customerNumbers = $this->extractCustomerNumbersFromConversation($conversation);
                 foreach ($customerNumbers as $customerNumber) {
-                    $customerResponse = $this->apiClient->fetchUserByIdOrName($customerNumber);
+                    $customerResponse = $this->readClient->fetchUserByIdOrName($customerNumber);
                     if (isset($customerResponse['error']) && isset($customerResponse['url'])) {
                         return response()->json(['error' => 'Redirect', 'url' => $customerResponse['url']]);
                     }
@@ -166,7 +170,7 @@ class AmeiseController extends Controller
                 $result['crmUsers'] = [];
                 return response()->json($result);
             }
-            $response = $this->apiClient->fetchUserByIdOrName($search);
+            $response = $this->readClient->fetchUserByIdOrName($search);
         }
 
         if (isset($response['error']) && isset($response['url'])) {
@@ -175,7 +179,7 @@ class AmeiseController extends Controller
         $crmUsers = [];
         foreach($response as $data) {
             $emails = $phone =  [];
-            $contactDetails = $this->apiClient->fetchUserDetail($data['Id'], 'kontaktdaten');
+            $contactDetails = $this->readClient->fetchUserDetail($data['Id'], 'kontaktdaten');
             foreach ($contactDetails as $item) {
                 if ($item["Typ"] === "email") {
                     $emails[] = $item["Value"];

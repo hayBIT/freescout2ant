@@ -38,7 +38,7 @@ class ArchiveThreadsJob implements ShouldQueue
 
       $tokenService = new \Modules\AmeiseModule\Services\TokenService('', $this->user->id);
       $apiClient = new \Modules\AmeiseModule\Services\CrmApiClient($tokenService);
-      $archiver = new \Modules\AmeiseModule\Services\ConversationArchiver($apiClient);
+      $archiver = new \Modules\AmeiseModule\Services\ConversationArchiver($apiClient, $tokenService);
       $archiver->archiveConversationData($this->conversation, $this->thread, $this->user);
     }
 }
