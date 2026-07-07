@@ -7,6 +7,8 @@ use GuzzleHttp\Exception\RequestException as Exception;
 
 class CrmApiClient
 {
+    private const MAX_SUBJECT_LENGTH = 128;
+
     private $base_url;
     private $tokenService;
     private $ameiseLogStatus;
@@ -196,7 +198,7 @@ class CrmApiClient
                 $subject = '(Kein Betreff)';
             }
             $headers = [
-                'X-Dio-Betreff' =>  $subject,
+                'X-Dio-Betreff' =>  $this->limitSubjectHeader($subject),
                 'x-dio-metadaten' =>  json_encode($data['x-dio-metadaten']),
                 'X-Dio-Typ' => $data['type'],
                 'Content-Type' => $data['Content-Type'] ??  'text/plain; charset="utf-8"',
@@ -230,6 +232,16 @@ class CrmApiClient
             }
         }
         return false;
+    }
+
+
+    private function limitSubjectHeader(string $subject): string
+    {
+        if (mb_strlen($subject) <= self::MAX_SUBJECT_LENGTH) {
+            return $subject;
+        }
+
+        return mb_substr($subject, 0, self::MAX_SUBJECT_LENGTH);
     }
 
     private function sanitizeLogData($data)

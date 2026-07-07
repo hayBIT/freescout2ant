@@ -10,6 +10,8 @@ use Modules\AmeiseModule\Entities\CrmArchiveThread;
 
 class ConversationArchiver
 {
+    private const MAX_SUBJECT_LENGTH = 128;
+
     private $apiClient;
 
     public function __construct(CrmApiClient $apiClient)
@@ -67,6 +69,13 @@ class ConversationArchiver
             $x_dio_metadaten[] = ['Value' => $key, 'Text' => $text];
         }
 
+        $subject = trim((string) ($conversation->subject ?? '')) !== ''
+            ? trim((string) $conversation->subject)
+            : '(Kein Betreff)';
+        if (mb_strlen($subject) > self::MAX_SUBJECT_LENGTH) {
+            $x_dio_metadaten[] = ['Value' => 'Vollständiger Betreff', 'Text' => $subject];
+        }
+
         $body = $thread->body ?? '';
         $body = html_entity_decode($body, ENT_QUOTES | ENT_HTML5);
         $body = str_replace(['<li>', '</li>'], ["\n- ", ''], $body);
@@ -83,9 +92,7 @@ class ConversationArchiver
         return [
             'type' =>  ($conversation->type == Conversation::TYPE_EMAIL) ? 'email' : 'telefon',
             'x-dio-metadaten' => $x_dio_metadaten,
-            'subject' => trim((string) ($conversation->subject ?? '')) !== ''
-                ? $conversation->subject
-                : '(Kein Betreff)',
+            'subject' => $subject,
             'body' => $body,
             'Content-Type' => 'text/plain; charset=utf-8',
             'X-Dio-Datum' => Carbon::parse($thread->created_at)->setTimezone($userTimezone)->format('Y-m-d\TH:i:s'),
