@@ -186,11 +186,32 @@ class CrmApiClient
 
     public function archiveConversation($data)
     {
+        return $this->archiveConversationDetailed($data)['ok'];
+    }
+
+    /**
+     * Sends the archive request and returns a structured result so callers
+     * can persist the failure reason (HTTP status, response body, exception).
+     *
+     * @return array{ok: bool, http_status: ?int, body: ?string, exception: ?string, token_error: bool}
+     */
+    public function archiveConversationDetailed($data)
+    {
+        $result = [
+            'ok' => false,
+            'http_status' => null,
+            'body' => null,
+            'exception' => null,
+            'token_error' => false,
+        ];
+
         try {
             $tokenError = $this->checkTokenError();
             if ($tokenError) {
                 $this->ameiseLogStatus && \Helper::log('conversation_archive', 'Archive conversation skipped because token contains an error.');
-                return false;
+                $result['token_error'] = true;
+                $result['body'] = $this->sanitizeLogText(json_encode($tokenError) ?: '');
+                return $result;
             }
             $this->ameiseLogStatus && \Helper::log('conversation_archive', 'Archive conversation request called.');
             $subject = isset($data['subject']) ? trim((string) $data['subject']) : '';
@@ -210,28 +231,35 @@ class CrmApiClient
                 'headers' => $headers,
                 'body' => $data['body'],
             ]);
-            $this->ameiseLogStatus && \Helper::log('conversation_archive', 'Response status: ' . $response->getStatusCode());
-            if ($response->getStatusCode() >= 200 && $response->getStatusCode() < 300) {
-                return true;
-            } elseif ($response->getStatusCode() === 401) {
+            $statusCode = $response->getStatusCode();
+            $result['http_status'] = $statusCode;
+            $this->ameiseLogStatus && \Helper::log('conversation_archive', 'Response status: ' . $statusCode);
+            if ($statusCode >= 200 && $statusCode < 300) {
+                $result['ok'] = true;
+                return $result;
+            } elseif ($statusCode === 401) {
                 $this->tokenService->disconnectAmeise();
-            } else {
-                $errorResponse = json_decode($response->getBody(), true);
-                $this->ameiseLogStatus && \Helper::log('conversation_archive', 'Request failed with status code: ' . $response->getStatusCode());
-                $this->ameiseLogStatus && \Helper::log(
-                    'conversation_archive',
-                    'Error response: ' . json_encode($this->sanitizeLogData($errorResponse))
-                );
             }
+            $rawBody = (string) $response->getBody();
+            $result['body'] = $this->sanitizeLogText($rawBody);
+            $errorResponse = json_decode($rawBody, true);
+            $this->ameiseLogStatus && \Helper::log('conversation_archive', 'Request failed with status code: ' . $statusCode);
+            $this->ameiseLogStatus && \Helper::log(
+                'conversation_archive',
+                'Error response: ' . json_encode($this->sanitizeLogData($errorResponse))
+            );
         } catch (Exception $e) {
             $body = $e->hasResponse() ? (string) $e->getResponse()->getBody() : '';
-            $this->ameiseLogStatus && \Helper::log('conversation_archive', 'Error body: ' . $this->sanitizeLogText($body));
+            $result['http_status'] = $e->hasResponse() ? $e->getResponse()->getStatusCode() : null;
+            $result['body'] = $this->sanitizeLogText($body);
+            $result['exception'] = $this->sanitizeLogText($e->getMessage());
+            $this->ameiseLogStatus && \Helper::log('conversation_archive', 'Error body: ' . $result['body']);
             $this->ameiseLogStatus && \Helper::logException($e, 'conversation_archive');
             if ($e->getCode() === 401) {
                 $this->tokenService->disconnectAmeise();
             }
         }
-        return false;
+        return $result;
     }
 
 

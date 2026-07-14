@@ -23,6 +23,27 @@ Verbose module logs (including Cron-Logeinträge) are disabled by default to avo
 ein übermäßiges Wachstum der `activity_logs`-Tabelle. Bei Bedarf können Sie sie
 über die Umgebungsvariable `AMEISE_LOG_STATUS=true` wieder aktivieren.
 
+## Tracking fehlgeschlagener Archivierungen
+Auch bei deaktiviertem `AMEISE_LOG_STATUS` werden Fehlversuche dauerhaft in der
+Tabelle `crm_archive_attempts` festgehalten (Grund, HTTP-Status, bereinigte
+Response). Konkrete Status:
+
+- `failed_no_customer` / `failed_ambiguous_customer` – kein eindeutiger Ameise-Kunde zur Mailadresse
+- `failed_api` – Ameise hat per HTTP gemeldet, dass die Archivierung nicht klappt
+- `failed_token` – Tokenfehler beim Aufruf
+- `failed_attachment` – Hauptnachricht ist angekommen, Anhänge teils nicht
+- `failed_exception` – unerwartete Exception (nach allen Queue-Retries endgültig)
+
+Tools:
+
+- CLI: `php artisan ameise:list-failed-archives [--since=24h] [--status=failed_api]`
+- CLI: `php artisan ameise:retry-failed-archives --conversation=123` oder `--id=456` oder `--all`
+- UI: Settings → Ameise → Sektion „Archivierungs-Fehler" listet offene Fälle mit „Erneut versuchen"/„Erledigt"-Buttons
+
+`ArchiveThreadsJob` versucht Exceptions automatisch bis zu 5×
+(Backoff 1 min / 5 min / 15 min / 1 h / 4 h) erneut; der Cron `ameise:archive-threads`
+greift offene Threads zusätzlich alle 5 Minuten wieder auf.
+
 ## Attachment Handling
 Image attachments are automatically converted to PDF before being archived.
 
