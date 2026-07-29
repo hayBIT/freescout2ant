@@ -10,7 +10,7 @@
         </div>
         <div class="collapse-conv-ameise panel-collapse collapse in">
             <div class="conversation-contracts panel-body" id="contracts-list">
-                @if ($archives->isNotEmpty() && file_exists(storage_path('user_' . auth()->user()->id . '_ant.txt')))
+                @if ($archives->isNotEmpty() && \Modules\AmeiseModule\Services\TokenService::isConnected(auth()->user()->id))
                     <div class="conversation-archives-data">
                         @foreach ($archives as $archive)
                             @php
@@ -44,6 +44,25 @@
                                    href="{{ (config('ameisemodule.ameise_mode') == 'test' ? 'https://maklerinfo.inte.dionera.dev' : 'https://ameise.app') }}/maklerportal/?show=kunde&kunde={{ $user['id'] ?? '' }}">
                                     <p>{{ $user['text'] ?? '' }}</p>
                                 </a>
+
+                                @if ($archive->needsReview())
+                                    @php
+                                        $sourceLabels = [
+                                            'email'           => __('E-Mail-Adresse'),
+                                            'customer_number' => __('Kundennummer'),
+                                            'both'            => __('E-Mail-Adresse und Kundennummer'),
+                                        ];
+                                    @endphp
+                                    <div class="ameise-auto-assigned">
+                                        <span class="label label-warning" title="{{ __('Erkannt über') }}: {{ $sourceLabels[$archive->match_source] ?? __('unbekannt') }}">
+                                            {{ __('Automatisch zugeordnet') }}
+                                        </span>
+                                        <button type="button" class="btn btn-link btn-xs ameise-confirm-assignment"
+                                                data-archive-id="{{ $archive->id }}"
+                                                data-conversation-id="{{ $archive->conversation_id }}">{{ __('Bestätigen') }}</button>
+                                        <a href="#" data-toggle="modal" data-target="#ameise-modal" class="btn btn-link btn-xs">{{ __('Korrigieren') }}</a>
+                                    </div>
+                                @endif
 
                                 @php
                                     $contracts = $archive->contracts ? json_decode($archive->contracts, true) : [];
