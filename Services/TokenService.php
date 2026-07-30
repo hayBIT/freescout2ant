@@ -8,8 +8,8 @@ use GuzzleHttp\Exception\ClientException as Exception;
 class TokenService
 {
     private const TOKEN_EXPIRY_SAFETY_BUFFER = 120;
+    private const FILE_SUFFIX = '_ant.txt';
 
-    private $fileName = '_ant.txt';
     private $access_token;
     private $refresh_token;
     private $clientId;
@@ -25,13 +25,51 @@ class TokenService
     public function __construct($code = '', $userId = '')
     {
         $this->url = (config('ameisemodule.ameise_mode') == 'test' ? 'https://auth.inte.dionera.dev' : 'https://auth.dionera.com');
-        $this->file = 'user_' . $userId . $this->fileName;
+        $this->file = self::fileForUser($userId);
         $this->redirectUrl = config('ameisemodule.ameise_redirect_uri');
         $this->clientId = config('ameisemodule.ameise_client_id');
         $this->clientSecret = config('ameisemodule.ameise_client_secret');
         $this->scope = config('ameisemodule.ameise_scope');
         $this->code = $code;
         $this->ameiseLogStatus = config('ameisemodule.ameise_log_status');
+    }
+
+    public static function fileForUser($userId): string
+    {
+        return 'user_' . $userId . self::FILE_SUFFIX;
+    }
+
+    /**
+     * Ist für diesen FreeScout-Nutzer ein Ameise-Token hinterlegt?
+     */
+    public static function isConnected($userId): bool
+    {
+        if (empty($userId)) {
+            return false;
+        }
+
+        return file_exists(storage_path(self::fileForUser($userId)));
+    }
+
+    /**
+     * Der in den Einstellungen hinterlegte Service-Nutzer, unter dessen Ameise-Zugang
+     * automatische Archivierungen laufen. Null, wenn nicht konfiguriert oder nicht
+     * (mehr) mit Ameise verbunden.
+     *
+     * @return \App\User|null
+     */
+    public static function getServiceUser()
+    {
+        $userId = config('ameisemodule.ameise_service_user_id');
+        if (empty($userId)) {
+            return null;
+        }
+
+        if (!self::isConnected($userId)) {
+            return null;
+        }
+
+        return \App\User::find($userId);
     }
 
     public function getAuthUrl()
