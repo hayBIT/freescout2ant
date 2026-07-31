@@ -147,8 +147,13 @@ class AmeiseModuleServiceProvider extends ServiceProvider
             $settings['ameise_mode'] = config('ameisemodule.ameise_mode');
             $settings['ameise_client_id'] = config('ameisemodule.ameise_client_id');
             $settings['ameise_redirect_uri'] = route('crm.auth');
-            $settings['ameise_auto_assign'] = config('ameisemodule.ameise_auto_assign') ? '1' : '0';
-            $settings['ameise_auto_assign_contracts'] = config('ameisemodule.ameise_auto_assign_contracts') ? '1' : '0';
+            // Bewusst 'true'/'false' statt '1'/'0': FreeScout kann einen in der .env
+            // stehenden Wert '0' nicht mehr ersetzen (Helper::setEnvFileVar prüft
+            // `if ($old_value)`) und hängt stattdessen eine zweite Zeile an, von der
+            // phpdotenv die erste gewinnen lässt – die Einstellung ließe sich nie
+            // wieder einschalten.
+            $settings['ameise_auto_assign'] = config('ameisemodule.ameise_auto_assign') ? 'true' : 'false';
+            $settings['ameise_auto_assign_contracts'] = config('ameisemodule.ameise_auto_assign_contracts') ? 'true' : 'false';
             $settings['ameise_service_user_id'] = config('ameisemodule.ameise_service_user_id');
             $settings['ameise_auto_assign_mailboxes'] = config('ameisemodule.ameise_auto_assign_mailboxes');
 
