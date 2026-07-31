@@ -55,11 +55,6 @@ Unter *Einstellungen → Ameise*:
 
 4. Erst danach **Automatisch zuordnen** auf *Ja* stellen (`AMEISE_AUTO_ASSIGN=true`).
 
-Die beiden Ja/Nein-Einstellungen werden als `true`/`false` in die `.env` geschrieben. FreeScout
-kann einen dort stehenden Wert `0` nicht mehr ersetzen und hängt stattdessen eine zweite Zeile
-an, von der beim Einlesen die erste gewinnt. Springt eine Einstellung immer wieder auf *Nein*,
-in der `.env` nach doppelten `AMEISE_AUTO_ASSIGN`-Zeilen suchen und alle bis auf eine entfernen.
-
 Der Cron `ameise:auto-assign` läuft alle 10 Minuten und berücksichtigt Konversationen ohne
 jede Zuordnung, die nicht älter als `AMEISE_AUTO_ASSIGN_MAX_AGE_DAYS` (Standard 30) Tage sind.
 Folge-Nachrichten übernimmt wie bisher `ameise:archive-threads`.
