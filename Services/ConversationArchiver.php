@@ -16,7 +16,7 @@ class ConversationArchiver
     private $customerMatcher;
     private $contractMatcher;
 
-    public function __construct(CrmApiClient $apiClient, CustomerMatcher $customerMatcher = null, ContractMatcher $contractMatcher = null)
+    public function __construct(CrmApiClient $apiClient, ?CustomerMatcher $customerMatcher = null, ?ContractMatcher $contractMatcher = null)
     {
         $this->apiClient = $apiClient;
         $this->customerMatcher = $customerMatcher ?? new CustomerMatcher($apiClient);
