@@ -11,15 +11,14 @@ use Illuminate\Routing\Controller;
 use Modules\AmeiseModule\Services\TokenService;
 use Modules\AmeiseModule\Services\CrmApiClient;
 use Modules\AmeiseModule\Services\ConversationArchiver;
-use Modules\AmeiseModule\Services\CustomerMatcher;
 use Modules\AmeiseModule\Entities\CrmArchive;
+use Modules\AmeiseModule\Entities\CrmArchiveThread;
 
 class AmeiseController extends Controller
 {
     protected $tokenService;
     protected $apiClient;
     protected $archiver;
-    protected $customerMatcher;
 
     public function __construct()
     {
@@ -27,7 +26,6 @@ class AmeiseController extends Controller
             $this->tokenService = $this->tokenService ?? new TokenService('', auth()->user()->id);
             $this->apiClient = new CrmApiClient($this->tokenService);
             $this->archiver = new ConversationArchiver($this->apiClient);
-            $this->customerMatcher = new CustomerMatcher($this->apiClient);
             return $next($request);
         });
 
@@ -79,7 +77,6 @@ class AmeiseController extends Controller
                 return response()->json(['contracts' => $groupedData, 'divisions' => $divisionResponse]);
                 break;
             case 'crm_conversation_archive':
-                $this->logCorrectedAutoAssignment($inputs['conversation_id'], $inputs['customer_id']);
                 $crm_archive = CrmArchive::where(
                     ['conversation_id' => $inputs['conversation_id'],
                     'crm_user_id' => $inputs['customer_id']
@@ -93,54 +90,33 @@ class AmeiseController extends Controller
                 $crm_archive->crm_user = $inputs['crm_user_data'];
                 $crm_archive->contracts = $inputs['contracts'];
                 $crm_archive->divisions = $inputs['divisions_data'];
-                // Vom Nutzer vorgenommen bzw. bestätigt – kein Prüfhinweis nötig.
-                $crm_archive->auto_assigned = false;
-                $crm_archive->confirmed_at = now();
                 $crm_archive->save();
                 $conversation = Conversation::with('threads.all_attachments')->find($inputs['conversation_id']);
-                $allArchived = $this->archiver->archiveThreadsForArchive($conversation, $crm_archive);
+                $allArchived = true;
+                foreach($conversation->threads as $thread) {
+                    $isArchiveThread = CrmArchiveThread::where('crm_archive_id', $crm_archive->id)->where('thread_id',$thread->id)->first();
+                    if(!$isArchiveThread){
+                        if ($this->archiver->shouldArchiveThread($conversation, $thread)) {
+                            $crm_user_id = $inputs['customer_id'];
+                            $contracts = json_decode($inputs['contracts'], true);
+                            $divisions = json_decode($inputs['divisions_data'], true);
+                            $conversation_data = $this->archiver->createConversationData($conversation, $crm_user_id, $contracts, $divisions, $thread);
+                            $scanOnly = $this->archiver->isScanOnly($conversation);
+                            $archived = $scanOnly ? true : $this->apiClient->archiveConversation($conversation_data);
+                            $attachmentsArchived = $archived ? $this->archiver->archiveConversationWithAttachments($thread, $conversation_data) : false;
+                            if($archived && (!$scanOnly || $attachmentsArchived)) {
+                                CrmArchiveThread::create(['crm_archive_id' => $crm_archive->id,'thread_id' => $thread->id,'conversation_id'=> $conversation->id ]);
+                            } else {
+                                $allArchived = false;
+                            }
+                        }
+                    }
+                }
                 return response()->json(['status' => $allArchived]);
                 break;
 
-            case 'crm_confirm_assignment':
-                $crm_archive = CrmArchive::where('id', $inputs['archive_id'] ?? 0)
-                    ->where('conversation_id', $inputs['conversation_id'] ?? 0)
-                    ->first();
-                if (!$crm_archive) {
-                    return response()->json(['status' => false]);
-                }
-                $crm_archive->confirmed_at = now();
-                $crm_archive->save();
-                return response()->json(['status' => true]);
-                break;
-
         }
 
-    }
-
-    /**
-     * Wird eine automatische Zuordnung durch eine andere überschrieben, war die
-     * Automatik daneben. Das ist die einzige Datenquelle für ihre Trefferqualität –
-     * und ein Hinweis darauf, dass in Ameise ein falscher Eintrag steht, den das
-     * Modul nicht entfernen kann.
-     */
-    private function logCorrectedAutoAssignment($conversationId, $crmUserId)
-    {
-        $wrongAssignments = CrmArchive::where('conversation_id', $conversationId)
-            ->where('auto_assigned', true)
-            ->whereNull('confirmed_at')
-            ->where('crm_user_id', '!=', $crmUserId)
-            ->get();
-
-        foreach ($wrongAssignments as $wrongAssignment) {
-            \Helper::log(
-                'ameise_auto_assign',
-                'Automatische Zuordnung korrigiert: Konversation ' . $conversationId
-                . ' war Kunde ' . $wrongAssignment->crm_user_id
-                . ' (Quelle: ' . $wrongAssignment->match_source . '), Nutzer wählte Kunde ' . $crmUserId
-                . '. Der Archiveintrag beim falschen Kunden bleibt in Ameise bestehen.'
-            );
-        }
     }
 
     public function getContracts($id)
@@ -163,13 +139,25 @@ class AmeiseController extends Controller
         $response = [];
         if (!empty($inputs['search_by_mail']) && !empty($inputs['conversation_id'])) {
             $conversation = Conversation::with('threads')->find($inputs['conversation_id']);
-            if ($conversation) {
-                $match = $this->customerMatcher->match($conversation);
-                if (!empty($match['redirect'])) {
-                    return response()->json(['error' => 'Redirect', 'url' => $match['redirect']]);
+            if (!empty($conversation->customer_email)) {
+                $response = $this->apiClient->fetchUserByEmail($conversation->customer_email);
+                if (isset($response['error']) && isset($response['url'])) {
+                    return response()->json(['error' => 'Redirect', 'url' => $response['url']]);
                 }
-                $response = $match['candidates'];
             }
+            if ($conversation) {
+                $customerNumbers = $this->extractCustomerNumbersFromConversation($conversation);
+                foreach ($customerNumbers as $customerNumber) {
+                    $customerResponse = $this->apiClient->fetchUserByIdOrName($customerNumber);
+                    if (isset($customerResponse['error']) && isset($customerResponse['url'])) {
+                        return response()->json(['error' => 'Redirect', 'url' => $customerResponse['url']]);
+                    }
+                    if (!empty($customerResponse)) {
+                        $response = array_merge($response, $customerResponse);
+                    }
+                }
+            }
+            $response = $this->uniqueCrmUsersById($response);
         }
 
         if (empty($response)) {
@@ -211,6 +199,66 @@ class AmeiseController extends Controller
         }
         $result['crmUsers'] = $crmUsers;
         return response()->json($result);
+    }
+
+    private function extractCustomerNumbersFromConversation($conversation)
+    {
+        $searchableTexts = [];
+        if (!empty($conversation->subject)) {
+            $searchableTexts[] = $conversation->subject;
+        }
+
+        foreach ($conversation->threads as $thread) {
+            if (!empty($thread->body)) {
+                $searchableTexts[] = $thread->body;
+            }
+        }
+
+        $customerNumbers = [];
+
+        foreach ($searchableTexts as $text) {
+            $numbers = $this->extractCustomerNumbers((string) $text);
+            if (!empty($numbers)) {
+                $customerNumbers = array_merge($customerNumbers, $numbers);
+            }
+        }
+
+        return array_values(array_unique($customerNumbers));
+    }
+
+    private function extractCustomerNumbers($text)
+    {
+        $decodedText = html_entity_decode($text, ENT_QUOTES | ENT_HTML5);
+        $decodedUrlText = rawurldecode($decodedText);
+        $plainText = strip_tags($decodedText);
+
+        // Search both the rendered text and the original HTML so customer numbers
+        // in signatures, hidden spans, or link attributes (for example kid=...)
+        // are detected.
+        $searchableText = implode(' ', array_unique([
+            $text,
+            $decodedText,
+            $decodedUrlText,
+            $plainText,
+        ]));
+
+        if (preg_match_all('/(?<!\d)5\d{9}(?!\d)/', $searchableText, $matches) > 0) {
+            return array_values(array_unique($matches[0]));
+        }
+
+        return [];
+    }
+
+    private function uniqueCrmUsersById(array $users)
+    {
+        $uniqueUsers = [];
+        foreach ($users as $user) {
+            if (isset($user['Id'])) {
+                $uniqueUsers[$user['Id']] = $user;
+            }
+        }
+
+        return array_values($uniqueUsers);
     }
 
     private function getFSUsers($inputs)
