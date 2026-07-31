@@ -41,9 +41,14 @@
         <label for="" class="col-sm-2 control-label">{{ __('Automatisch zuordnen') }}</label>
 
         <div class="col-sm-6">
+            @php
+                // FILTER_VALIDATE_BOOLEAN akzeptiert 'true'/'false' ebenso wie ältere
+                // '1'/'0'-Werte, die vor diesem Fix in der .env gelandet sein können.
+                $ameiseAutoAssign = filter_var(old('settings[ameise_auto_assign]', $settings['ameise_auto_assign']), FILTER_VALIDATE_BOOLEAN);
+            @endphp
             <select class="form-control" name="settings[ameise_auto_assign]">
-                <option value="0" {{ old('settings[ameise_auto_assign]', $settings['ameise_auto_assign']) ? '' : 'selected' }}>{{ __('Nein') }}</option>
-                <option value="1" {{ old('settings[ameise_auto_assign]', $settings['ameise_auto_assign']) ? 'selected' : '' }}>{{ __('Ja') }}</option>
+                <option value="false" {{ $ameiseAutoAssign ? '' : 'selected' }}>{{ __('Nein') }}</option>
+                <option value="true" {{ $ameiseAutoAssign ? 'selected' : '' }}>{{ __('Ja') }}</option>
             </select>
             <p class="help-block">
                 {{ __('Konversationen werden nur bei eindeutigem Treffer (E-Mail-Adresse oder Kundennummer) automatisch archiviert. Ein falscher Archiveintrag kann in Ameise nicht gelöscht werden – zuvor mit "php artisan ameise:auto-assign --dry-run" prüfen.') }}
@@ -55,9 +60,12 @@
         <label for="" class="col-sm-2 control-label">{{ __('Verträge/Sparten zuordnen') }}</label>
 
         <div class="col-sm-6">
+            @php
+                $ameiseAutoAssignContracts = filter_var(old('settings[ameise_auto_assign_contracts]', $settings['ameise_auto_assign_contracts']), FILTER_VALIDATE_BOOLEAN);
+            @endphp
             <select class="form-control" name="settings[ameise_auto_assign_contracts]">
-                <option value="0" {{ old('settings[ameise_auto_assign_contracts]', $settings['ameise_auto_assign_contracts']) ? '' : 'selected' }}>{{ __('Nein') }}</option>
-                <option value="1" {{ old('settings[ameise_auto_assign_contracts]', $settings['ameise_auto_assign_contracts']) ? 'selected' : '' }}>{{ __('Ja') }}</option>
+                <option value="false" {{ $ameiseAutoAssignContracts ? '' : 'selected' }}>{{ __('Nein') }}</option>
+                <option value="true" {{ $ameiseAutoAssignContracts ? 'selected' : '' }}>{{ __('Ja') }}</option>
             </select>
             <p class="help-block">{{ __('Nur wenn die Versicherungsscheinnummer im Text steht oder der Kunde genau einen Vertrag hat.') }}</p>
         </div>
