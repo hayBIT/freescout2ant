@@ -13,14 +13,10 @@ class ConversationArchiver
     private const MAX_SUBJECT_LENGTH = 128;
 
     private $apiClient;
-    private $customerMatcher;
-    private $contractMatcher;
 
-    public function __construct(CrmApiClient $apiClient, CustomerMatcher $customerMatcher = null, ContractMatcher $contractMatcher = null)
+    public function __construct(CrmApiClient $apiClient)
     {
         $this->apiClient = $apiClient;
-        $this->customerMatcher = $customerMatcher ?? new CustomerMatcher($apiClient);
-        $this->contractMatcher = $contractMatcher ?? new ContractMatcher($apiClient);
     }
 
     public function shouldArchiveThread($conversation, $thread)
@@ -164,168 +160,42 @@ class ConversationArchiver
     {
         $thread =  $thread ?? $conversation->getLastThread();
         $user = $user ?? auth()->user();
-        if (!$thread || !$this->shouldArchiveThread($conversation, $thread)) {
-            return;
-        }
-
-        $crmArchives = CrmArchive::where('conversation_id', $conversation->id)->get();
-        if (count($crmArchives) > 0) {
-            foreach ($crmArchives as $crmArchive) {
-                $isArchiveThread = CrmArchiveThread::where('crm_archive_id', $crmArchive->id)->where('thread_id', $thread->id)->first();
-                if (!$isArchiveThread) {
-                    $contracts = !empty($crmArchive->contracts) ? json_decode($crmArchive->contracts, true) : [];
-                    $divisions = !empty($crmArchive->divisions) ? json_decode($crmArchive->divisions, true) : [];
-                    $this->archiveThread($conversation, $crmArchive, $contracts, $divisions, $thread, $user);
+        if ($this->shouldArchiveThread($conversation, $thread)) {
+            $crmArchives = CrmArchive::where('conversation_id', $conversation->id)->get();
+            if (count($crmArchives) > 0) {
+                foreach ($crmArchives as $crmArchive) {
+                    $isArchiveThread = CrmArchiveThread::where('crm_archive_id', $crmArchive->id)->where('thread_id',$thread->id)->first();
+                    if(!$isArchiveThread){
+                        $contracts = !empty($crmArchive->contracts) ? json_decode($crmArchive->contracts, true) : [];
+                        $divisions = !empty($crmArchive->divisions) ? json_decode($crmArchive->divisions, true) : [];
+                        $conversation_data = $this->createConversationData($conversation, $crmArchive->crm_user_id, $contracts, $divisions, $thread, $user);
+                        $scanOnly = $this->isScanOnly($conversation);
+                        $archived = $scanOnly ? true : $this->apiClient->archiveConversation($conversation_data);
+                        $attachmentsArchived = $archived ? $this->archiveConversationWithAttachments($thread, $conversation_data, $user) : false;
+                        if($archived && (!$scanOnly || $attachmentsArchived)) {
+                            CrmArchiveThread::create(['crm_archive_id' => $crmArchive->id,'thread_id' => $thread->id,'conversation_id'=> $conversation->id ]);
+                        }
+                    }
+                }
+            } else {
+                $response = $this->apiClient->fetchUserByEmail($conversation->customer_email);
+                if (count($response) == 1) {
+                    $crm_user_id = $response[0]['Id'];
+                    $conversation_data  = $this->createConversationData($conversation, $crm_user_id, [], [], $thread, $user);
+                    $scanOnly = $this->isScanOnly($conversation);
+                    $archived = $scanOnly ? true : $this->apiClient->archiveConversation($conversation_data);
+                    $attachmentsArchived = $archived ? $this->archiveConversationWithAttachments($thread, $conversation_data, $user) : false;
+                    if($archived && (!$scanOnly || $attachmentsArchived)) {
+                        $crm_archive = CrmArchive::firstOrNew(['conversation_id' => $conversation->id, 'crm_user_id' => $crm_user_id,'archived_by' => $user->id]);
+                        $crm_archive->crm_user = json_encode(['id' => $crm_user_id, 'text' => $response[0]['Text']]);
+                        $crm_archive->contracts = null;
+                        $crm_archive->divisions = null;
+                        $crm_archive->save();
+                        CrmArchiveThread::create(['crm_archive_id' => $crm_archive->id,'thread_id' => $thread->id,'conversation_id'=> $conversation->id ]);
+                    }
                 }
             }
-
-            return;
         }
 
-        // Noch keine Zuordnung vorhanden: automatisch versuchen, aber nur den
-        // auslösenden Thread archivieren (bisheriges Verhalten).
-        $this->autoAssignConversation($conversation, $user, $thread);
-    }
-
-    /**
-     * Ordnet eine noch nicht zugeordnete Konversation automatisch einem Ameise-Kunden
-     * zu und archiviert sie – ausschließlich bei eindeutigem Treffer.
-     *
-     * @param mixed $thread Nur diesen Thread archivieren; null = alle Threads.
-     *
-     * @return bool
-     */
-    public function autoAssignConversation($conversation, $user = null, $thread = null)
-    {
-        $user = $user ?? auth()->user();
-        if (!$user) {
-            return false;
-        }
-
-        if (CrmArchive::where('conversation_id', $conversation->id)->exists()) {
-            return false;
-        }
-
-        $match = $this->resolveCustomer($conversation);
-        if (!$match['unique']) {
-            return false;
-        }
-
-        $candidate = $match['candidates'][0];
-        $crmUserId = $candidate['Id'];
-        $assignment = $this->resolveContracts($crmUserId, $conversation);
-
-        $crmArchive = new CrmArchive();
-        $crmArchive->conversation_id = $conversation->id;
-        $crmArchive->crm_user_id = $crmUserId;
-        $crmArchive->archived_by = $user->id;
-        $crmArchive->crm_user = json_encode(['id' => $crmUserId, 'text' => $candidate['Text'] ?? '']);
-        $crmArchive->contracts = !empty($assignment['contracts']) ? json_encode($assignment['contracts']) : null;
-        $crmArchive->divisions = !empty($assignment['divisions']) ? json_encode($assignment['divisions']) : null;
-        $crmArchive->auto_assigned = 1;
-        $crmArchive->match_source = $match['source'];
-        $crmArchive->save();
-
-        if ($thread) {
-            $contracts = $assignment['contracts'];
-            $divisions = $assignment['divisions'];
-            $this->archiveThread($conversation, $crmArchive, $contracts, $divisions, $thread, $user);
-        } else {
-            $this->archiveThreadsForArchive($conversation, $crmArchive, $user);
-        }
-
-        // Ist nichts im CRM gelandet (z. B. API-Fehler), die Zuordnung wieder entfernen.
-        // Sonst gilt die Konversation als bearbeitet und würde nie erneut versucht.
-        if (!CrmArchiveThread::where('crm_archive_id', $crmArchive->id)->exists()) {
-            $crmArchive->delete();
-
-            return false;
-        }
-
-        // Automatische CRM-Schreibvorgänge protokollieren, solange die Automatik aktiv ist –
-        // das ist der Prüfpfad für Fehlzuordnungen.
-        if ($this->autoAssignEnabled() || config('ameisemodule.ameise_log_status')) {
-            \Helper::log(
-                'ameise_auto_assign',
-                'Konversation ' . $conversation->id . ' automatisch Kunde ' . $crmUserId
-                . ' zugeordnet (Quelle: ' . $match['source'] . ', Verträge: ' . count($assignment['contracts']) . ').'
-            );
-        }
-
-        return true;
-    }
-
-    /**
-     * Kandidatensuche. Ist die Automatik deaktiviert, wird wie bisher ausschließlich
-     * über die Kunden-E-Mail zugeordnet.
-     */
-    public function resolveCustomer($conversation): array
-    {
-        return $this->customerMatcher->match($conversation, $this->autoAssignEnabled());
-    }
-
-    private function resolveContracts($crmUserId, $conversation): array
-    {
-        if (!$this->autoAssignEnabled() || !config('ameisemodule.ameise_auto_assign_contracts')) {
-            return ['contracts' => [], 'divisions' => []];
-        }
-
-        return $this->contractMatcher->match($crmUserId, $conversation);
-    }
-
-    private function autoAssignEnabled(): bool
-    {
-        return (bool) config('ameisemodule.ameise_auto_assign');
-    }
-
-    /**
-     * Archiviert alle noch nicht archivierten Threads einer Konversation für eine
-     * bestehende Zuordnung.
-     *
-     * @return bool true, wenn alle in Frage kommenden Threads archiviert wurden
-     */
-    public function archiveThreadsForArchive($conversation, $crmArchive, $user = null)
-    {
-        $user = $user ?? auth()->user();
-        $contracts = !empty($crmArchive->contracts) ? json_decode($crmArchive->contracts, true) : [];
-        $divisions = !empty($crmArchive->divisions) ? json_decode($crmArchive->divisions, true) : [];
-        $allArchived = true;
-
-        foreach ($conversation->threads as $thread) {
-            if (CrmArchiveThread::where('crm_archive_id', $crmArchive->id)->where('thread_id', $thread->id)->exists()) {
-                continue;
-            }
-            if (!$this->shouldArchiveThread($conversation, $thread)) {
-                continue;
-            }
-            if (!$this->archiveThread($conversation, $crmArchive, $contracts, $divisions, $thread, $user)) {
-                $allArchived = false;
-            }
-        }
-
-        return $allArchived;
-    }
-
-    /**
-     * Überträgt einen einzelnen Thread ins CRM und vermerkt ihn bei Erfolg.
-     */
-    private function archiveThread($conversation, $crmArchive, $contracts, $divisions, $thread, $user)
-    {
-        $conversation_data = $this->createConversationData($conversation, $crmArchive->crm_user_id, $contracts, $divisions, $thread, $user);
-        $scanOnly = $this->isScanOnly($conversation);
-        $archived = $scanOnly ? true : $this->apiClient->archiveConversation($conversation_data);
-        $attachmentsArchived = $archived ? $this->archiveConversationWithAttachments($thread, $conversation_data, $user) : false;
-
-        if ($archived && (!$scanOnly || $attachmentsArchived)) {
-            CrmArchiveThread::create([
-                'crm_archive_id'  => $crmArchive->id,
-                'thread_id'       => $thread->id,
-                'conversation_id' => $conversation->id,
-            ]);
-
-            return true;
-        }
-
-        return false;
     }
 }

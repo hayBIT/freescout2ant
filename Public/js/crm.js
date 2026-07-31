@@ -210,34 +210,6 @@ $(document).ready(function() {
         });
     });
 
-    // Die Sidebar wird per fetch nachgeladen, daher delegiert gebunden.
-    $(document).on('click', '.ameise-confirm-assignment', function() {
-        const $button = $(this);
-        const $block = $button.closest('.ameise-auto-assigned');
-        $button.prop('disabled', true);
-
-        $.ajax({
-            url: '/ameise/ajax',
-            type: 'POST',
-            data: {
-                action: 'crm_confirm_assignment',
-                archive_id: $button.data('archive-id'),
-                conversation_id: $button.data('conversation-id'),
-                _token: csrfToken
-            },
-            success: function(response) {
-                if (response.status) {
-                    $block.remove();
-                } else {
-                    $button.prop('disabled', false);
-                }
-            },
-            error: function() {
-                $button.prop('disabled', false);
-            }
-        });
-    });
-
     function manageContractSelects() {
         $('#contract-tag-dropdown').select2({
             placeholder: 'Verträge',

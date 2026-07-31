@@ -10,8 +10,6 @@ use Config;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\Event;
 use Modules\AmeiseModule\Console\Commands\ArchiveThreads;
-use Modules\AmeiseModule\Console\Commands\AutoAssignConversations;
-use Modules\AmeiseModule\Services\TokenService;
 defined('AMEISE_MODULE') || define('AMEISE_MODULE', 'ameisemodule');
 
 class AmeiseModuleServiceProvider extends ServiceProvider
@@ -35,7 +33,6 @@ class AmeiseModuleServiceProvider extends ServiceProvider
         $this->registerFactories();
         $this->commands([
             ArchiveThreads::class,
-            AutoAssignConversations::class,
         ]);
         $this->loadMigrationsFrom(__DIR__ . '/../Database/Migrations');
         $this->hooks();
@@ -82,7 +79,7 @@ class AmeiseModuleServiceProvider extends ServiceProvider
 
     private function isUserConnected($user)
     {
-        return $user && TokenService::isConnected($user->id);
+        return $user && file_exists(storage_path("user_" . $user->id . "_ant.txt"));
     }
 
     private function createArchiver($userId)
@@ -147,10 +144,6 @@ class AmeiseModuleServiceProvider extends ServiceProvider
             $settings['ameise_mode'] = config('ameisemodule.ameise_mode');
             $settings['ameise_client_id'] = config('ameisemodule.ameise_client_id');
             $settings['ameise_redirect_uri'] = route('crm.auth');
-            $settings['ameise_auto_assign'] = config('ameisemodule.ameise_auto_assign') ? '1' : '0';
-            $settings['ameise_auto_assign_contracts'] = config('ameisemodule.ameise_auto_assign_contracts') ? '1' : '0';
-            $settings['ameise_service_user_id'] = config('ameisemodule.ameise_service_user_id');
-            $settings['ameise_auto_assign_mailboxes'] = config('ameisemodule.ameise_auto_assign_mailboxes');
 
             return $settings;
         }, 20, 2);
@@ -176,18 +169,6 @@ class AmeiseModuleServiceProvider extends ServiceProvider
                 ],
                 'ameise_log_status' => [
                     'env' => 'AMEISE_LOG_STATUS',
-                ],
-                'ameise_auto_assign' => [
-                    'env' => 'AMEISE_AUTO_ASSIGN',
-                ],
-                'ameise_auto_assign_contracts' => [
-                    'env' => 'AMEISE_AUTO_ASSIGN_CONTRACTS',
-                ],
-                'ameise_service_user_id' => [
-                    'env' => 'AMEISE_SERVICE_USER_ID',
-                ],
-                'ameise_auto_assign_mailboxes' => [
-                    'env' => 'AMEISE_AUTO_ASSIGN_MAILBOXES',
                 ],
             ];
 
@@ -289,7 +270,5 @@ class AmeiseModuleServiceProvider extends ServiceProvider
         // If not, you may need to resolve it from the container
         $schedule = app(Schedule::class);
         $schedule->command('ameise:archive-threads')->everyFiveMinutes();
-        // Prüft von sich aus, ob die Automatik aktiviert ist.
-        $schedule->command('ameise:auto-assign')->everyTenMinutes();
     }
 }
