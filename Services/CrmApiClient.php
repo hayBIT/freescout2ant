@@ -70,7 +70,7 @@ class CrmApiClient
             if ($e->getCode() === 401) {
                 $this->tokenService->disconnectAmeise();
             }
-            if ($e->hasResponse()) {
+            if ($e->getResponse() !== null) {
                 $body = (string) $e->getResponse()->getBody();
                 $this->ameiseLogStatus && \Helper::log($logContext, 'Error body: ' . $this->sanitizeLogText($body));
             }
@@ -113,7 +113,7 @@ class CrmApiClient
             if ($e->getCode() === 401) {
                 $this->tokenService->disconnectAmeise();
             }
-            if ($e->hasResponse()) {
+            if ($e->getResponse() !== null) {
                 $body = (string) $e->getResponse()->getBody();
                 $this->ameiseLogStatus && \Helper::log($logContext, 'Error body: ' . $this->sanitizeLogText($body));
             }
@@ -224,7 +224,7 @@ class CrmApiClient
                 );
             }
         } catch (Exception $e) {
-            $body = $e->hasResponse() ? (string) $e->getResponse()->getBody() : '';
+            $body = $e->getResponse() !== null ? (string) $e->getResponse()->getBody() : '';
             $this->ameiseLogStatus && \Helper::log('conversation_archive', 'Error body: ' . $this->sanitizeLogText($body));
             $this->ameiseLogStatus && \Helper::logException($e, 'conversation_archive');
             if ($e->getCode() === 401) {
