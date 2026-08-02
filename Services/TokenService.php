@@ -206,7 +206,7 @@ class TokenService
 
     private function refreshRequestRequiresReauthentication(Exception $e): bool
     {
-        if (!$e->hasResponse()) {
+        if ($e->getResponse() === null) {
             return false;
         }
 
