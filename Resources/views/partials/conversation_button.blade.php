@@ -8,14 +8,18 @@
     <a href="{{$url}}" title="{{ __('Mit Ameise verbinden') }}" aria-label="{{ __('Mit Ameise verbinden') }}"> <img class="ameise-logo" alt="logo"
     src="{{ Module::getPublicPath(AMEISE_MODULE) . '/images/ameise_icon_bold_red.svg' }}"></a>
 @endif
-<link href="{{ asset(Module::getPublicPath(AMEISE_MODULE) . '/css/style.css') }}" rel="stylesheet" type="text/css">
+@php
+    // Erzwingt nach einem Modul-Update das Neuladen der Assets statt der Cache-Version.
+    $ameise_asset_version = $asset_version ?? '1.0.0';
+@endphp
+<link href="{{ asset(Module::getPublicPath(AMEISE_MODULE) . '/css/style.css') }}?v={{ $ameise_asset_version }}" rel="stylesheet" type="text/css">
 <input type="hidden" id="ameise_base_url" value="{{ (config('ameisemodule.ameise_mode') == 'test' ? 'https://maklerinfo.inte.dionera.dev/' : 'https://ameise.app/') }}">
 @section('javascripts')
     @parent
-    <link href="{{ asset(Module::getPublicPath(AMEISE_MODULE) . '/css/awesomplete.css') }}" rel="stylesheet"
+    <link href="{{ asset(Module::getPublicPath(AMEISE_MODULE) . '/css/awesomplete.css') }}?v={{ $ameise_asset_version }}" rel="stylesheet"
         type="text/css">
-    <script src="{{ Module::getPublicPath(AMEISE_MODULE) . '/js/awesomplete.js' }}"  {!! \Helper::cspNonceAttr() !!}></script>
-    <script src="{{ Module::getPublicPath(AMEISE_MODULE) . '/js/crm.js' }}"  {!! \Helper::cspNonceAttr() !!}></script>
+    <script src="{{ Module::getPublicPath(AMEISE_MODULE) . '/js/awesomplete.js' }}?v={{ $ameise_asset_version }}"  {!! \Helper::cspNonceAttr() !!}></script>
+    <script src="{{ Module::getPublicPath(AMEISE_MODULE) . '/js/crm.js' }}?v={{ $ameise_asset_version }}"  {!! \Helper::cspNonceAttr() !!}></script>
     <script {!! \Helper::cspNonceAttr() !!}>
         setInterval(function () {
             fetch('/ameise/refresh-token');

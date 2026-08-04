@@ -50,7 +50,10 @@ class AmeiseModuleServiceProvider extends ServiceProvider
         Eventy::addAction('conversation.action_buttons', function () {
             $tokenService = new \Modules\AmeiseModule\Services\TokenService('', auth()->user()->id);
             $url = $tokenService->getAuthUrl();
-            echo View::make('ameise::partials/conversation_button', ['url' => $url])->render();
+            echo View::make('ameise::partials/conversation_button', [
+                'url' => $url,
+                'asset_version' => $this->assetVersion(),
+            ])->render();
         }, 10, 2);
 
         Eventy::addAction('layout.body_bottom', function () {
@@ -58,7 +61,9 @@ class AmeiseModuleServiceProvider extends ServiceProvider
         }, 10, 2);
 
         Eventy::addAction('layout.body_bottom', function () {
-            echo View::make('ameise::partials/crm_users')->render();
+            echo View::make('ameise::partials/crm_users', [
+                'asset_version' => $this->assetVersion(),
+            ])->render();
         }, 10, 2);
 
         Eventy::addAction('conversation.created_by_user_can_undo', function ($conversation) {
@@ -76,6 +81,34 @@ class AmeiseModuleServiceProvider extends ServiceProvider
         $this->registerSettings();
     }
 
+
+    /**
+     * Versionskennung für die CSS-/JS-URLs des Moduls.
+     *
+     * Ohne sie liefert der Browser nach einem Modul-Update weiter die alten
+     * Dateien aus dem Cache aus, weil sich die URL nicht ändert. Als Kennung
+     * dient der jüngste Änderungszeitpunkt der Asset-Dateien.
+     */
+    private function assetVersion()
+    {
+        static $version = null;
+
+        if ($version !== null) {
+            return $version;
+        }
+
+        $timestamps = [0];
+        foreach (['css/*.css', 'js/*.js'] as $pattern) {
+            foreach ((array) glob(__DIR__ . '/../Public/' . $pattern) as $file) {
+                $timestamps[] = (int) @filemtime($file);
+            }
+        }
+
+        $latest = max($timestamps);
+        $version = $latest > 0 ? (string) $latest : '1.0.0';
+
+        return $version;
+    }
 
     private function isUserConnected($user)
     {

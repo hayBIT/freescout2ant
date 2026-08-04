@@ -177,6 +177,11 @@ $(document).ready(function() {
             return;
         }
 
+        // Animation zuerst starten, damit sie auch dann sichtbar ist, wenn das
+        // Zusammenbauen der Formulardaten unten hakt.
+        showArchiveError('');
+        setArchiveRunning(true);
+
         let formData = [];
         formData = $('#crm_user_form').serialize();
         let crm_user = {
@@ -210,9 +215,6 @@ $(document).ready(function() {
         }
         processSelectedData($('#contract-tag-dropdown').select2('data'), 'contracts');
         processSelectedData($('#division-tag-dropdown').select2('data'), 'divisions_data');
-
-        showArchiveError('');
-        setArchiveRunning(true);
 
         $.ajax({
             url: '/ameise/ajax',
