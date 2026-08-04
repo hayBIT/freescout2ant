@@ -6,6 +6,7 @@
               <h4 class="modal-title">{{ __('In Ameise archivieren') }}</h4>
           </div>
           <div class="modal-body">
+<div id="ameise-archive-error" class="alert alert-danger" style="display: none;"></div>
 <form id="crm_user_form">
   <div class="form_user_crm">
       <span>{{__('Search')}}</span>

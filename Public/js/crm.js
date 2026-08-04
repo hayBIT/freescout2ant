@@ -6,6 +6,8 @@ $(document).ready(function() {
         const crm_button = $('#crm_button');
         const archive_btn = $('#archive_btn');
 
+        showArchiveError('');
+
         const input = document.getElementById('crm_user');
         const awesomeList = new Awesomplete(input, {
             minChars: 0,
@@ -194,21 +196,37 @@ $(document).ready(function() {
         processSelectedData($('#contract-tag-dropdown').select2('data'), 'contracts');
         processSelectedData($('#division-tag-dropdown').select2('data'), 'divisions_data');
 
+        showArchiveError('');
+
         $.ajax({
             url: '/ameise/ajax',
             type: 'POST',
             data: combinedData,
             success: function(response) {
-                console.log(response);
                 if (response.status) {
                     location.reload();
                 } else if(response.error == 'Redirect'){
                     window.open(response.url, '_blank');
+                } else {
+                    // Archivierung fehlgeschlagen: die Zuordnung wurde serverseitig
+                    // nicht gespeichert, deshalb hier auch nicht neu laden.
+                    showArchiveError(response.message || 'Die Archivierung in der Ameise ist fehlgeschlagen. Die Zuordnung wurde nicht gespeichert.');
                 }
             },
-            error: function(error) {}
+            error: function(error) {
+                showArchiveError('Die Archivierung in der Ameise ist fehlgeschlagen. Die Zuordnung wurde nicht gespeichert.');
+            }
         });
     });
+
+    function showArchiveError(message) {
+        const errorBox = $('#ameise-archive-error');
+        if (!message) {
+            errorBox.hide().text('');
+            return;
+        }
+        errorBox.text(message).show();
+    }
 
     function manageContractSelects() {
         $('#contract-tag-dropdown').select2({
