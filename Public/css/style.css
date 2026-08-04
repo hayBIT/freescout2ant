@@ -33,6 +33,71 @@ ul.ui-menu.ui-front {
     padding-top: 10px;
 }
 
+#ameise-archive-progress {
+    margin-top: 14px;
+}
+
+.ameise-progress-label {
+    font-size: 12px;
+    color: #6b7a86;
+    margin-bottom: 6px;
+}
+
+.ameise-progress-track {
+    position: relative;
+    height: 6px;
+    border-radius: 3px;
+    background-color: #e4e8eb;
+    overflow: hidden;
+}
+
+/* Unbestimmter Balken: die Dauer hängt an der Ameise, deshalb kein Prozentwert. */
+.ameise-progress-track:after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: -40%;
+    height: 100%;
+    width: 40%;
+    border-radius: 3px;
+    background-color: #337ab7;
+    animation: ameise-progress-slide 1.4s ease-in-out infinite;
+}
+
+@keyframes ameise-progress-slide {
+    from { left: -40%; }
+    to   { left: 100%; }
+}
+
+.ameise-spinner {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    margin-right: 7px;
+    vertical-align: -1px;
+    border: 2px solid rgba(255, 255, 255, 0.4);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: ameise-spin 0.8s linear infinite;
+}
+
+@keyframes ameise-spin {
+    to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ameise-progress-track:after {
+        animation: none;
+        left: 0;
+        width: 100%;
+        opacity: 0.5;
+    }
+
+    .ameise-spinner {
+        animation: none;
+    }
+}
+
 span.loading-icon {
     position: absolute;
     right: 10px;
