@@ -77,42 +77,82 @@ class AmeiseController extends Controller
                 return response()->json(['contracts' => $groupedData, 'divisions' => $divisionResponse]);
                 break;
             case 'crm_conversation_archive':
+                $conversation = Conversation::with('threads.all_attachments')->find($inputs['conversation_id']);
+                if (!$conversation) {
+                    return response()->json(['status' => false, 'message' => __('Konversation nicht gefunden.')]);
+                }
+
                 $crm_archive = CrmArchive::where(
                     ['conversation_id' => $inputs['conversation_id'],
                     'crm_user_id' => $inputs['customer_id']
                     ])->first();
+
+                $crm_user_id = $inputs['customer_id'];
+                $contracts = json_decode($inputs['contracts'] ?? '', true);
+                $divisions = json_decode($inputs['divisions_data'] ?? '', true);
+                $scanOnly = $this->archiver->isScanOnly($conversation);
+
+                // Erst archivieren, dann speichern: die Zuordnung darf in FreeScout
+                // nur entstehen, wenn die Archivierung in der Ameise geklappt hat.
+                $allArchived = true;
+                $archivedThreadIds = [];
+                foreach($conversation->threads as $thread) {
+                    if ($crm_archive) {
+                        $isArchiveThread = CrmArchiveThread::where('crm_archive_id', $crm_archive->id)->where('thread_id',$thread->id)->first();
+                        if ($isArchiveThread) {
+                            continue;
+                        }
+                    }
+                    if (!$this->archiver->shouldArchiveThread($conversation, $thread)) {
+                        continue;
+                    }
+                    $conversation_data = $this->archiver->createConversationData($conversation, $crm_user_id, $contracts, $divisions, $thread);
+                    $archived = $scanOnly ? true : $this->apiClient->archiveConversation($conversation_data);
+                    $attachmentsArchived = $archived ? $this->archiver->archiveConversationWithAttachments($thread, $conversation_data) : false;
+                    if($archived && (!$scanOnly || $attachmentsArchived)) {
+                        $archivedThreadIds[] = $thread->id;
+                    } else {
+                        $allArchived = false;
+                    }
+                }
+
+                // Nichts konnte archiviert werden: weder eine neue Zuordnung anlegen
+                // noch eine bestehende Zuordnung überschreiben.
+                if (!$allArchived && empty($archivedThreadIds)) {
+                    \Helper::log(
+                        'conversation_archive',
+                        'Zuordnung nicht gespeichert, da die Archivierung fehlgeschlagen ist (conversation_id: '
+                            . $conversation->id . ', crm_user_id: ' . $crm_user_id . ').'
+                    );
+
+                    return response()->json([
+                        'status' => false,
+                        'message' => __('Die Archivierung in der Ameise ist fehlgeschlagen. Die Zuordnung wurde nicht gespeichert.'),
+                    ]);
+                }
+
                 if(!$crm_archive) {
                     $crm_archive = new CrmArchive();
-                    $crm_archive->crm_user_id = $inputs['customer_id'];
+                    $crm_archive->crm_user_id = $crm_user_id;
                     $crm_archive->conversation_id = $inputs['conversation_id'];
                     $crm_archive->archived_by = auth()->user()->id;
                 }
-                $crm_archive->crm_user = $inputs['crm_user_data'];
-                $crm_archive->contracts = $inputs['contracts'];
-                $crm_archive->divisions = $inputs['divisions_data'];
+                $crm_archive->crm_user = $inputs['crm_user_data'] ?? null;
+                $crm_archive->contracts = $inputs['contracts'] ?? null;
+                $crm_archive->divisions = $inputs['divisions_data'] ?? null;
                 $crm_archive->save();
-                $conversation = Conversation::with('threads.all_attachments')->find($inputs['conversation_id']);
-                $allArchived = true;
-                foreach($conversation->threads as $thread) {
-                    $isArchiveThread = CrmArchiveThread::where('crm_archive_id', $crm_archive->id)->where('thread_id',$thread->id)->first();
-                    if(!$isArchiveThread){
-                        if ($this->archiver->shouldArchiveThread($conversation, $thread)) {
-                            $crm_user_id = $inputs['customer_id'];
-                            $contracts = json_decode($inputs['contracts'], true);
-                            $divisions = json_decode($inputs['divisions_data'], true);
-                            $conversation_data = $this->archiver->createConversationData($conversation, $crm_user_id, $contracts, $divisions, $thread);
-                            $scanOnly = $this->archiver->isScanOnly($conversation);
-                            $archived = $scanOnly ? true : $this->apiClient->archiveConversation($conversation_data);
-                            $attachmentsArchived = $archived ? $this->archiver->archiveConversationWithAttachments($thread, $conversation_data) : false;
-                            if($archived && (!$scanOnly || $attachmentsArchived)) {
-                                CrmArchiveThread::create(['crm_archive_id' => $crm_archive->id,'thread_id' => $thread->id,'conversation_id'=> $conversation->id ]);
-                            } else {
-                                $allArchived = false;
-                            }
-                        }
-                    }
+
+                foreach ($archivedThreadIds as $archivedThreadId) {
+                    CrmArchiveThread::create(['crm_archive_id' => $crm_archive->id,'thread_id' => $archivedThreadId,'conversation_id'=> $conversation->id ]);
                 }
-                return response()->json(['status' => $allArchived]);
+
+                $response = ['status' => $allArchived];
+                if (!$allArchived) {
+                    // Teilerfolg: die bereits archivierten Threads bleiben zugeordnet.
+                    $response['message'] = __('Nicht alle Nachrichten konnten in der Ameise archiviert werden.');
+                }
+
+                return response()->json($response);
                 break;
 
         }

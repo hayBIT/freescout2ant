@@ -1,10 +1,15 @@
 $(document).ready(function() {
     const csrfToken = $('meta[name="csrf-token"]').attr('content');
+    let archiveInProgress = false;
+
     $('#ameise-modal').on('show.bs.modal', function (e) {
         const searchIcon = $(".loading-icon"); 
         const customer_id = $('#customer_id');
         const crm_button = $('#crm_button');
         const archive_btn = $('#archive_btn');
+
+        showArchiveError('');
+        setArchiveRunning(false);
 
         const input = document.getElementById('crm_user');
         const awesomeList = new Awesomplete(input, {
@@ -93,6 +98,14 @@ $(document).ready(function() {
         $('#crm_user').trigger('focus');
     });
 
+    $('#ameise-modal').on('hide.bs.modal', function (e) {
+        // Solange archiviert wird, darf der Dialog nicht zugehen: das Schließen
+        // lädt die Seite neu und würde den laufenden Request abbrechen.
+        if (archiveInProgress) {
+            e.preventDefault();
+        }
+    });
+
     $('#ameise-modal').on('hidden.bs.modal', function () {
         location.reload();
     });
@@ -160,6 +173,10 @@ $(document).ready(function() {
         multiSelect1.select2();
     }
     $(document).on("click", '#archive_btn', function() {
+        if (archiveInProgress) {
+            return;
+        }
+
         let formData = [];
         formData = $('#crm_user_form').serialize();
         let crm_user = {
@@ -194,21 +211,67 @@ $(document).ready(function() {
         processSelectedData($('#contract-tag-dropdown').select2('data'), 'contracts');
         processSelectedData($('#division-tag-dropdown').select2('data'), 'divisions_data');
 
+        showArchiveError('');
+        setArchiveRunning(true);
+
         $.ajax({
             url: '/ameise/ajax',
             type: 'POST',
             data: combinedData,
             success: function(response) {
-                console.log(response);
                 if (response.status) {
+                    // Animation weiterlaufen lassen, bis der Reload greift.
                     location.reload();
-                } else if(response.error == 'Redirect'){
+                    return;
+                }
+                setArchiveRunning(false);
+                if(response.error == 'Redirect'){
                     window.open(response.url, '_blank');
+                } else {
+                    // Archivierung fehlgeschlagen: die Zuordnung wurde serverseitig
+                    // nicht gespeichert, deshalb hier auch nicht neu laden.
+                    showArchiveError(response.message || 'Die Archivierung in der Ameise ist fehlgeschlagen. Die Zuordnung wurde nicht gespeichert.');
                 }
             },
-            error: function(error) {}
+            error: function(error) {
+                setArchiveRunning(false);
+                showArchiveError('Die Archivierung in der Ameise ist fehlgeschlagen. Die Zuordnung wurde nicht gespeichert.');
+            }
         });
     });
+
+    function showArchiveError(message) {
+        const errorBox = $('#ameise-archive-error');
+        if (!message) {
+            errorBox.hide().text('');
+            return;
+        }
+        errorBox.text(message).show();
+    }
+
+    // Archivieren kann je nach Anzahl der Nachrichten und Anhänge dauern.
+    // Solange die Anfrage läuft, zeigt der Dialog Spinner und Fortschrittsbalken.
+    function setArchiveRunning(running) {
+        archiveInProgress = running;
+
+        const archiveBtn = $('#archive_btn');
+        if (!archiveBtn.data('idle-label')) {
+            archiveBtn.data('idle-label', archiveBtn.text());
+        }
+
+        if (running) {
+            const loadingLabel = archiveBtn.data('loading-label') || 'Archivierung läuft …';
+            archiveBtn.empty()
+                .append($('<span>', { 'class': 'ameise-spinner', 'aria-hidden': 'true' }))
+                .append(document.createTextNode(loadingLabel));
+        } else {
+            archiveBtn.text(archiveBtn.data('idle-label'));
+        }
+
+        archiveBtn.prop('disabled', running).attr('aria-busy', running ? 'true' : 'false');
+        $('#archive_cancel_btn, #ameise-modal .modal-header .close').prop('disabled', running);
+        $('#ameise-archive-progress').toggle(running);
+    }
 
     function manageContractSelects() {
         $('#contract-tag-dropdown').select2({

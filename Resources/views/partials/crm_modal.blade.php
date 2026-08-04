@@ -6,6 +6,7 @@
               <h4 class="modal-title">{{ __('In Ameise archivieren') }}</h4>
           </div>
           <div class="modal-body">
+<div id="ameise-archive-error" class="alert alert-danger" style="display: none;"></div>
 <form id="crm_user_form">
   <div class="form_user_crm">
       <span>{{__('Search')}}</span>
@@ -28,12 +29,17 @@
       id="division-tag-dropdown" multiple="multiple">
       </select>
       </div>
-     
+
   </form>
+  <div id="ameise-archive-progress" style="display: none;" role="status" aria-live="polite">
+      <div class="ameise-progress-label">{{ __('Archivierung läuft, bitte warten …') }}</div>
+      <div class="ameise-progress-track"></div>
+  </div>
 </div>
 <div class="modal-footer">
-  <button type="button" class="btn btn-default" data-dismiss="modal">{{ __('Abbrechen') }}</button>
-  <button type="button" class="btn btn-primary" id="archive_btn" style="display: none;">{{ __('Archivieren') }}</button>
+  <button type="button" class="btn btn-default" id="archive_cancel_btn" data-dismiss="modal">{{ __('Abbrechen') }}</button>
+  <button type="button" class="btn btn-primary" id="archive_btn" style="display: none;"
+    data-loading-label="{{ __('Archivierung läuft …') }}">{{ __('Archivieren') }}</button>
 </div>
 </div>
 </div>
