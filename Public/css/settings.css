@@ -1,0 +1,38 @@
+/*
+ * Icon der Ameise-Sektion in der Einstellungs-Sidebar.
+ *
+ * FreeScout rendert das Sektions-Icon fest als <i class="glyphicon glyphicon-{icon}">.
+ * Statt eines Bootstrap-Glyphicons registriert das Modul deshalb den eigenen
+ * Modifier "glyphicon-ameise" (siehe AmeiseModuleServiceProvider) und zeichnet
+ * darin das Ameisen-Icon, das auch zum Archivieren angeklickt wird.
+ */
+.glyphicon-ameise:before {
+    content: "";
+    display: block;
+    width: 16px;
+    height: 16px;
+    background-image: url('../images/ameise_icon_bold_green.svg');
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+/*
+ * Wo Masken unterstützt werden, übernimmt die Ameise die Farbe der übrigen
+ * Sidebar-Icons (grau, blau wenn aktiv) und fügt sich damit ins Menü ein.
+ * Ohne Maskenunterstützung bleibt es beim grünen Icon oben.
+ */
+@supports ((-webkit-mask-image: url('')) or (mask-image: url(''))) {
+    .glyphicon-ameise:before {
+        background-image: none;
+        background-color: currentColor;
+        -webkit-mask-image: url('../images/ameise_icon_bold.svg');
+        mask-image: url('../images/ameise_icon_bold.svg');
+        -webkit-mask-size: contain;
+        mask-size: contain;
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+        -webkit-mask-position: center;
+        mask-position: center;
+    }
+}

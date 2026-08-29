@@ -11,6 +11,10 @@ return [
     // Verbose logging can quickly grow the FreeScout activity_logs table.
     // Disable by default and allow opt-in via AMEISE_LOG_STATUS=true.
     'ameise_log_status' => env('AMEISE_LOG_STATUS', false),
+    // Absenderadressen, die nicht in die Ameise archiviert werden sollen.
+    // Mehrere Adressen per Komma, Semikolon oder Zeilenumbruch trennen.
+    // Die Einstellung im Ameise-Einstellungsmenü hat Vorrang vor diesem Wert.
+    'ameise_excluded_senders' => env('AMEISE_EXCLUDED_SENDERS', ''),
 
 ];
 

@@ -7,6 +7,7 @@
           </div>
           <div class="modal-body">
 <div id="ameise-archive-error" class="alert alert-danger" style="display: none;"></div>
+<div id="ameise-archive-notice" class="alert alert-warning" style="display: none;"></div>
 <form id="crm_user_form">
   <div class="form_user_crm">
       <span>{{__('Search')}}</span>
