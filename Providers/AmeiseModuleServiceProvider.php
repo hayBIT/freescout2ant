@@ -53,6 +53,16 @@ class AmeiseModuleServiceProvider extends ServiceProvider
             echo View::make('ameise::partials/conversation_button', ['url' => $url])->render();
         }, 10, 2);
 
+        // Stylesheet für das Ameise-Icon in der Einstellungs-Sidebar. Nur auf der
+        // Einstellungsseite nötig, deshalb nicht global einbinden.
+        Eventy::addAction('layout.head', function () {
+            if (!\Helper::isRoute('settings')) {
+                return;
+            }
+            echo '<link href="' . asset(\Module::getPublicPath(AMEISE_MODULE) . '/css/settings.css')
+                . '" rel="stylesheet" type="text/css">';
+        });
+
         Eventy::addAction('layout.body_bottom', function () {
             echo View::make('ameise::partials/crm_modal')->render();
         }, 10, 2);
@@ -139,7 +149,10 @@ class AmeiseModuleServiceProvider extends ServiceProvider
     {
         // Add item to settings sections.
         Eventy::addFilter('settings.sections', function ($sections) {
-            $sections['ameise'] = [ 'title' => __('Ameise'), 'icon' => 'briefcase', 'order' => 200 ];
+            // "ameise" ist kein Bootstrap-Glyphicon, sondern ein eigener Modifier:
+            // FreeScout rendert daraus <i class="glyphicon glyphicon-ameise">, das
+            // Modul zeichnet darin per settings.css das Ameisen-Icon.
+            $sections['ameise'] = [ 'title' => __('Ameise'), 'icon' => 'ameise', 'order' => 200 ];
 
             return $sections;
         }, 15);
