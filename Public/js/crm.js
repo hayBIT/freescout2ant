@@ -9,6 +9,7 @@ $(document).ready(function() {
         const archive_btn = $('#archive_btn');
 
         showArchiveError('');
+        showArchiveNotice('');
         setArchiveRunning(false);
 
         const input = document.getElementById('crm_user');
@@ -212,6 +213,7 @@ $(document).ready(function() {
         processSelectedData($('#division-tag-dropdown').select2('data'), 'divisions_data');
 
         showArchiveError('');
+        showArchiveNotice('');
         setArchiveRunning(true);
 
         $.ajax({
@@ -219,7 +221,7 @@ $(document).ready(function() {
             type: 'POST',
             data: combinedData,
             success: function(response) {
-                if (response.status) {
+                if (response.status && !response.notice) {
                     // Animation weiterlaufen lassen, bis der Reload greift.
                     location.reload();
                     return;
@@ -227,6 +229,15 @@ $(document).ready(function() {
                 setArchiveRunning(false);
                 if(response.error == 'Redirect'){
                     window.open(response.url, '_blank');
+                } else if (response.notice) {
+                    // Absender ist von der Archivierung ausgeschlossen: Mitteilung
+                    // anzeigen und den Dialog offen lassen, damit sie gelesen wird.
+                    // Der Reload folgt beim Schließen des Dialogs.
+                    showArchiveNotice(response.notice);
+                    if (response.message) {
+                        showArchiveError(response.message);
+                    }
+                    $('#archive_btn').hide();
                 } else {
                     // Archivierung fehlgeschlagen: die Zuordnung wurde serverseitig
                     // nicht gespeichert, deshalb hier auch nicht neu laden.
@@ -239,6 +250,17 @@ $(document).ready(function() {
             }
         });
     });
+
+    // Mitteilung, wenn Nachrichten wegen eines ausgeschlossenen Absenders
+    // nicht archiviert wurden.
+    function showArchiveNotice(message) {
+        const noticeBox = $('#ameise-archive-notice');
+        if (!message) {
+            noticeBox.hide().text('');
+            return;
+        }
+        noticeBox.text(message).show();
+    }
 
     function showArchiveError(message) {
         const errorBox = $('#ameise-archive-error');

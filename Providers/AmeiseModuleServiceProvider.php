@@ -105,6 +105,16 @@ class AmeiseModuleServiceProvider extends ServiceProvider
             return;
         }
 
+        $archiver = $this->createArchiver($user->id);
+
+        // Ausgeschlossene Absender werden weder archiviert noch zugeordnet.
+        $excludedSender = $archiver->getExcludedSender($forwarded_conversation, $forwarded_thread);
+        if ($excludedSender !== null) {
+            $archiver->notifyExcludedSender($forwarded_conversation, $excludedSender);
+
+            return;
+        }
+
         $existingArchive = \Modules\AmeiseModule\Entities\CrmArchive::where('conversation_id', $conversation->id)
             ->where('archived_by', $user->id)
             ->first();
@@ -119,7 +129,7 @@ class AmeiseModuleServiceProvider extends ServiceProvider
             ]);
         }
 
-        $this->createArchiver($user->id)->archiveConversationData($forwarded_conversation, $forwarded_thread, $user);
+        $archiver->archiveConversationData($forwarded_conversation, $forwarded_thread, $user);
     }
 
     /**
@@ -144,6 +154,9 @@ class AmeiseModuleServiceProvider extends ServiceProvider
             $settings['ameise_mode'] = config('ameisemodule.ameise_mode');
             $settings['ameise_client_id'] = config('ameisemodule.ameise_client_id');
             $settings['ameise_redirect_uri'] = route('crm.auth');
+            // Wird als Option in der Datenbank gespeichert (mehrzeilig, deshalb
+            // kein .env-Eintrag).
+            $settings['ameise_excluded_senders'] = \Modules\AmeiseModule\Services\SenderExclusion::getRawSetting();
 
             return $settings;
         }, 20, 2);

@@ -14,9 +14,29 @@ class ConversationArchiver
 
     private $apiClient;
 
-    public function __construct(CrmApiClient $apiClient)
+    private $senderExclusion;
+
+    public function __construct(CrmApiClient $apiClient, SenderExclusion $senderExclusion = null)
     {
         $this->apiClient = $apiClient;
+        $this->senderExclusion = $senderExclusion ?: new SenderExclusion();
+    }
+
+    /**
+     * Liefert die in den Einstellungen ausgeschlossene Absenderadresse der
+     * Konversation bzw. des Threads oder null.
+     */
+    public function getExcludedSender($conversation, $thread = null)
+    {
+        return $this->senderExclusion->getExcludedSender($conversation, $thread);
+    }
+
+    /**
+     * Benachrichtigt den Benutzer über eine wegen des Absenders übersprungene E-Mail.
+     */
+    public function notifyExcludedSender($conversation, $sender)
+    {
+        $this->senderExclusion->notify($conversation, $sender);
     }
 
     public function shouldArchiveThread($conversation, $thread)
@@ -161,6 +181,15 @@ class ConversationArchiver
         $thread =  $thread ?? $conversation->getLastThread();
         $user = $user ?? auth()->user();
         if ($this->shouldArchiveThread($conversation, $thread)) {
+            // Absender, die in den Einstellungen ausgeschlossen sind, werden
+            // nicht archiviert - der Benutzer bekommt eine Mitteilung.
+            $excludedSender = $this->getExcludedSender($conversation, $thread);
+            if ($excludedSender !== null) {
+                $this->notifyExcludedSender($conversation, $excludedSender);
+
+                return;
+            }
+
             $crmArchives = CrmArchive::where('conversation_id', $conversation->id)->get();
             if (count($crmArchives) > 0) {
                 foreach ($crmArchives as $crmArchive) {

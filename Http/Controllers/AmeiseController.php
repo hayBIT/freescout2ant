@@ -96,6 +96,7 @@ class AmeiseController extends Controller
                 // nur entstehen, wenn die Archivierung in der Ameise geklappt hat.
                 $allArchived = true;
                 $archivedThreadIds = [];
+                $excludedSenders = [];
                 foreach($conversation->threads as $thread) {
                     if ($crm_archive) {
                         $isArchiveThread = CrmArchiveThread::where('crm_archive_id', $crm_archive->id)->where('thread_id',$thread->id)->first();
@@ -104,6 +105,13 @@ class AmeiseController extends Controller
                         }
                     }
                     if (!$this->archiver->shouldArchiveThread($conversation, $thread)) {
+                        continue;
+                    }
+                    // Absender, die in den Einstellungen ausgeschlossen sind,
+                    // werden nicht archiviert.
+                    $excludedSender = $this->archiver->getExcludedSender($conversation, $thread);
+                    if ($excludedSender !== null) {
+                        $excludedSenders[$excludedSender] = $excludedSender;
                         continue;
                     }
                     $conversation_data = $this->archiver->createConversationData($conversation, $crm_user_id, $contracts, $divisions, $thread);
@@ -131,6 +139,24 @@ class AmeiseController extends Controller
                     ]);
                 }
 
+                // Es gab nur ausgeschlossene Absender: nichts archivieren, nichts
+                // zuordnen - der Benutzer bekommt eine Mitteilung.
+                if (empty($archivedThreadIds) && !empty($excludedSenders)) {
+                    \Helper::log(
+                        'conversation_archive',
+                        'Archivierung übersprungen, da die Absenderadresse ausgeschlossen ist ('
+                            . implode(', ', $excludedSenders) . ', conversation_id: ' . $conversation->id . ').'
+                    );
+
+                    return response()->json([
+                        'status' => false,
+                        'notice' => __(
+                            'Die Archivierung wurde übersprungen: Die Absenderadresse :sender ist in den Ameise-Einstellungen von der Archivierung ausgeschlossen.',
+                            ['sender' => implode(', ', $excludedSenders)]
+                        ),
+                    ]);
+                }
+
                 if(!$crm_archive) {
                     $crm_archive = new CrmArchive();
                     $crm_archive->crm_user_id = $crm_user_id;
@@ -150,6 +176,13 @@ class AmeiseController extends Controller
                 if (!$allArchived) {
                     // Teilerfolg: die bereits archivierten Threads bleiben zugeordnet.
                     $response['message'] = __('Nicht alle Nachrichten konnten in der Ameise archiviert werden.');
+                }
+                if (!empty($excludedSenders)) {
+                    // Einzelne Nachrichten wurden wegen des Absenders übersprungen.
+                    $response['notice'] = __(
+                        'Nicht alle Nachrichten wurden archiviert: Die Absenderadresse :sender ist in den Ameise-Einstellungen von der Archivierung ausgeschlossen.',
+                        ['sender' => implode(', ', $excludedSenders)]
+                    );
                 }
 
                 return response()->json($response);

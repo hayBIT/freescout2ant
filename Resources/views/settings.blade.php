@@ -34,6 +34,18 @@
         </div>
     </div>
 
+    <div class="form-group">
+        <label for="ameise_excluded_senders" class="col-sm-2 control-label">{{ __('Ausgeschlossene Absender') }}</label>
+
+        <div class="col-sm-6">
+            <textarea class="form-control" id="ameise_excluded_senders" name="settings[ameise_excluded_senders]" rows="5" placeholder="newsletter@example.com&#10;*@no-reply.example.com">{{ old('settings.ameise_excluded_senders', $settings['ameise_excluded_senders']) }}</textarea>
+            <p class="help-block">
+                {{ __('Eine Absenderadresse pro Zeile. E-Mails dieser Absender werden nicht in der Ameise archiviert; der Benutzer erhält stattdessen eine Mitteilung.') }}
+                {{ __('Platzhalter sind erlaubt (z. B. *@example.com). Ein Eintrag ohne lokalen Teil (z. B. @example.com) schließt die komplette Domain aus.') }}
+            </p>
+        </div>
+    </div>
+
     <div class="form-group margin-top margin-bottom">
         <div class="col-sm-6 col-sm-offset-2">
             <button type="submit" class="btn btn-primary">

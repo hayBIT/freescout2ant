@@ -8,6 +8,7 @@ use Illuminate\Console\Command;
 use Modules\AmeiseModule\Entities\CrmArchive;
 use Modules\AmeiseModule\Entities\CrmArchiveThread;
 use Modules\AmeiseModule\Jobs\ArchiveThreadsJob;
+use Modules\AmeiseModule\Services\SenderExclusion;
 
 class ArchiveThreads extends Command
 {
@@ -50,7 +51,19 @@ class ArchiveThreads extends Command
             ->with(['conversation', 'attachments'])
             ->get();
 
+        $senderExclusion = new SenderExclusion();
+
         foreach ($threads as $thread) {
+            // Ausgeschlossene Absender gar nicht erst einreihen, sonst würde
+            // der Cron alle fünf Minuten vergeblich Jobs erzeugen.
+            if ($senderExclusion->isConfigured() && $thread->conversation) {
+                $excludedSender = $senderExclusion->getExcludedSender($thread->conversation, $thread);
+                if ($excludedSender !== null) {
+                    $senderExclusion->notify($thread->conversation, $excludedSender);
+                    continue;
+                }
+            }
+
             $archives = CrmArchive::where('conversation_id', $thread->conversation_id)
                 ->groupBy('archived_by')
                 ->pluck('archived_by')
