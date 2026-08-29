@@ -16,7 +16,7 @@ class ConversationArchiver
 
     private $senderExclusion;
 
-    public function __construct(CrmApiClient $apiClient, SenderExclusion $senderExclusion = null)
+    public function __construct(CrmApiClient $apiClient, ?SenderExclusion $senderExclusion = null)
     {
         $this->apiClient = $apiClient;
         $this->senderExclusion = $senderExclusion ?: new SenderExclusion();
