@@ -139,7 +139,7 @@ class AmeiseModuleServiceProvider extends ServiceProvider
     {
         // Add item to settings sections.
         Eventy::addFilter('settings.sections', function ($sections) {
-            $sections['ameise'] = [ 'title' => __('Ameise'), 'icon' => 'headphones', 'order' => 200 ];
+            $sections['ameise'] = [ 'title' => __('Ameise'), 'icon' => 'briefcase', 'order' => 200 ];
 
             return $sections;
         }, 15);
