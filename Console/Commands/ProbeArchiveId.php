@@ -7,6 +7,7 @@ use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Modules\AmeiseModule\Console\Concerns\WritesReport;
 use Modules\AmeiseModule\Services\ArchiveApiClient;
+use Modules\AmeiseModule\Services\ArchiveEntryPayload;
 use Modules\AmeiseModule\Services\CrmApiClient;
 use Modules\AmeiseModule\Services\TokenService;
 
@@ -224,11 +225,25 @@ class ProbeArchiveId extends Command
         $failed = 0;
         foreach ($found as $id => $date) {
             if ($archiveClient->deleteArchiveEntry($customerId, $id)) {
-                $this->info('  gelöscht: ' . $id . ($date ? ' (' . $date . ')' : ''));
-            } else {
-                $this->error('  fehlgeschlagen: ' . $id . ' — ' . $archiveClient->getLastError());
-                $failed++;
+                $this->info('  gelöscht (DELETE): ' . $id . ($date ? ' (' . $date . ')' : ''));
+                continue;
             }
+
+            $deleteError = $archiveClient->getLastError();
+            $deleteStatus = $archiveClient->getLastStatusCode();
+
+            // Fällt DELETE aus, bleibt der Weg über isDeleted — und die Antwort
+            // darauf sagt zugleich, ob die Archive-API überhaupt Schreibzugriff gewährt.
+            if ($this->softDelete($archiveClient, $customerId, $id)) {
+                $this->info('  als gelöscht markiert (PATCH): ' . $id . ($date ? ' (' . $date . ')' : ''));
+                $this->line('        DELETE war nicht möglich (' . $deleteStatus . ': ' . $deleteError . ').');
+                continue;
+            }
+
+            $this->error('  fehlgeschlagen: ' . $id);
+            $this->line('        DELETE (' . $deleteStatus . '): ' . $deleteError);
+            $this->line('        PATCH  (' . $archiveClient->getLastStatusCode() . '): ' . $archiveClient->getLastError());
+            $failed++;
         }
 
         if ($failed > 0) {
@@ -237,6 +252,24 @@ class ProbeArchiveId extends Command
         }
 
         return 0;
+    }
+
+    /**
+     * Markiert einen Eintrag über PATCH als gelöscht — Read-Modify-Write, damit
+     * Tags und Zuordnungen dabei nicht verloren gehen.
+     */
+    private function softDelete(ArchiveApiClient $archiveClient, $customerId, $entryId): bool
+    {
+        $entry = $archiveClient->getCustomerArchiveEntry($customerId, $entryId);
+        if ($entry === null) {
+            return false;
+        }
+
+        return $archiveClient->updateArchiveEntry(
+            $customerId,
+            $entryId,
+            ArchiveEntryPayload::fromEntry($entry, ['isDeleted' => true])
+        );
     }
 
     /**
