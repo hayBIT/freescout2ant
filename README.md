@@ -40,6 +40,19 @@ Der Befehl nutzt die Ameise-Verbindung des ersten verbundenen Benutzers; mit
 `--user=<ID>` lässt sich ein bestimmter Benutzer wählen. Ein `403` bedeutet in aller
 Regel, dass der OAuth-Scope die Archive-API nicht einschließt.
 
+Ob die Mitarbeiter-API beim Archivieren eine Eintrags-ID zurückgibt — die Voraussetzung
+dafür, einen Eintrag später zu bearbeiten — beantwortet:
+
+```
+php artisan ameise:archive-probe --customer=<Kundennummer> --cleanup
+```
+
+Der Befehl legt einen Testeintrag beim genannten Kunden an (mit Rückfrage), zeigt Status,
+Header und Body der Antwort, versucht die erkannte ID über `id-mapping` aufzulösen und
+löscht den Testeintrag mit `--cleanup` anschließend wieder. Alternativ genügt es,
+`AMEISE_LOG_STATUS=true` zu setzen und eine beliebige Konversation wie gewohnt zu
+archivieren: Header, Body und die erkannte ID stehen dann im Log.
+
 ## Logging
 Verbose module logs (including Cron-Logeinträge) are disabled by default to avoid
 ein übermäßiges Wachstum der `activity_logs`-Tabelle. Bei Bedarf können Sie sie

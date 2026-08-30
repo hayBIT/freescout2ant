@@ -11,6 +11,7 @@ use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\Event;
 use Modules\AmeiseModule\Console\Commands\ArchiveThreads;
 use Modules\AmeiseModule\Console\Commands\CheckArchiveApi;
+use Modules\AmeiseModule\Console\Commands\ProbeArchiveId;
 defined('AMEISE_MODULE') || define('AMEISE_MODULE', 'ameisemodule');
 
 class AmeiseModuleServiceProvider extends ServiceProvider
@@ -35,6 +36,7 @@ class AmeiseModuleServiceProvider extends ServiceProvider
         $this->commands([
             ArchiveThreads::class,
             CheckArchiveApi::class,
+            ProbeArchiveId::class,
         ]);
         $this->loadMigrationsFrom(__DIR__ . '/../Database/Migrations');
         $this->hooks();
