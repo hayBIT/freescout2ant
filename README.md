@@ -21,7 +21,10 @@ Log in to Ameise to connect.
 ## Archive-API (Bearbeiten von Archiveinträgen)
 
 Zum nachträglichen Ändern von Archiveinträgen wird die Archive-API
-(`customer-archives`) genutzt. Ihr Host wird unter **Einstellungen → Ameise** im Feld
+(`customer-archives`) genutzt. Sie ist eine Ergänzung, keine Voraussetzung: das
+Archivieren selbst läuft unverändert über die Mitarbeiter-API. Ohne hinterlegte URL oder
+ohne passenden OAuth-Scope funktioniert das Modul wie bisher, nur ohne die
+Bearbeitungsfunktionen. Ihr Host wird unter **Einstellungen → Ameise** im Feld
 `Archive API URL` gesetzt oder direkt über die Umgebungsvariable
 `AMEISE_ARCHIVE_API_URL`.
 

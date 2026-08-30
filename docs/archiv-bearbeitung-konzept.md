@@ -68,7 +68,7 @@ Drei Wege, in dieser Reihenfolge:
    `GET /api/customers/{id}/archive-entries` mit `dateMin`/`dateMax` aus `thread.created_at`
    und ordnet über Datum + Betreff + Autor zu. Treffer eindeutig → speichern, sonst als
    `sync_state = unmapped` markieren (Eintrag bleibt in der GUI sichtbar, aber nicht editierbar).
-3. **Zielbild:** Schreibpfad auf `POST /api/customers/{id}/archive-entries` umstellen. Die
+3. **Optional zuschaltbar:** Schreibpfad über `POST /api/customers/{id}/archive-entries`. Die
    Antwort liefert die ID direkt, Anhänge hängen als `files[]` am selben Eintrag statt eigene
    Einträge zu erzeugen, Betreff/Text stehen im JSON statt in Headern (kein 128-Zeichen-Header-
    Trimming mehr). Achtung: Base64 im JSON vergrößert die Payload um ~33 % — Chunking bzw.
@@ -177,6 +177,33 @@ ein Fehlgriff der Automatik ist dann korrigierbar statt endgültig.
 * `ameise:sync-archive-entries` spiegelt stündlich Remote-Änderungen und -Löschungen zurück,
   damit die Prüfliste nicht auf Einträge zeigt, die in der Ameise längst erledigt sind.
 
+## 8a. Grundbedingung: die bisherige Archivierung bleibt
+
+Nicht jeder Mandant hat den OAuth-Scope für die Archive-API. Für diese Nutzer muss das
+Modul unverändert weiterlaufen — Archivieren darf nie davon abhängen, dass die neue API
+erreichbar, konfiguriert oder freigeschaltet ist. Daraus folgen fünf verbindliche Regeln:
+
+1. **Der Schreibpfad bleibt die Mitarbeiter-API.** `POST {ma}/archiveintraege` ist und
+   bleibt der Standard. Die Archive-API kommt ausschließlich lesend und ändernd dazu.
+2. **Kein Aufruf der Archive-API im Archivierungspfad.** Weder `id-mapping` noch ein
+   Abgleich darf synchron beim Archivieren laufen. Die ID wird aus der Antwort der
+   Mitarbeiter-API übernommen; die Auflösung in die UUID passiert später und darf
+   fehlschlagen, ohne dass die Archivierung betroffen ist (`sync_state = unmapped`).
+3. **Fähigkeitsprüfung je Nutzer statt Fehlermeldung.** Ein `403` auf
+   `GET /api/contracts/tags` bedeutet „kein Scope“. Das Ergebnis wird je Nutzer
+   zwischengespeichert; die Bearbeiten-Funktionen (Eintragsliste, Stift, Bulk-Dialog,
+   Prüfliste) werden dann **nicht gerendert**, statt beim Klick zu scheitern.
+4. **Phase 4 ist eine Option, kein Umstieg.** Der Schreibpfad über die neue API wird pro
+   Mandant zuschaltbar und fällt bei fehlendem Scope, fehlendem Host oder einem Fehler
+   automatisch auf die Mitarbeiter-API zurück. Ohne ausdrückliche Zuschaltung ändert sich
+   nichts.
+5. **Automatische Archivierung setzt die Archive-API voraus** — sie braucht
+   `requiresReview` und die Prüfliste. Ohne Scope steht sie schlicht nicht zur Verfügung;
+   die manuelle Archivierung bleibt davon unberührt.
+
+Prüfkriterium für jede weitere Phase: Mit leerer `ameise_archive_api_url` und ohne Scope
+muss Archivieren, Nacharchivieren per Cron und Weiterleiten exakt wie heute funktionieren.
+
 ## 9. Phasen
 
 | Phase | Inhalt | Ergebnis |
@@ -186,7 +213,7 @@ ein Fehlgriff der Automatik ist dann korrigierbar statt endgültig.
 | 1 | Tabelle `crm_archive_entries`, Migration, `ameise:backfill-archive-ids` | Altbestand ist zugeordnet |
 | 2 | Sidebar-Liste, Bearbeiten-Modal, Bulk-Zuordnung | manuelle Korrektur läuft |
 | 3 | `requiresReview`, Prüfliste, `ameise:sync-archive-entries` | Korrekturschleife steht |
-| 4 | Schreibpfad auf neue API (`files[]` am Eintrag), danach Automatik je Mailbox | automatische Archivierung |
+| 4 | Schreibpfad über die neue API als **zuschaltbare Option** (`files[]` am Eintrag) mit Rückfall auf die Mitarbeiter-API, danach Automatik je Mailbox | automatische Archivierung für Mandanten mit Scope |
 
 ## 10. Offene Punkte
 
