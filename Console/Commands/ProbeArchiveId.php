@@ -99,7 +99,41 @@ class ProbeArchiveId extends Command
         }
 
         $meta = $crmClient->getLastArchiveResponseMeta();
-        $this->info('Archivierung erfolgreich. Antwort der Mitarbeiter-API:');
+        $legacyId = $crmClient->getLastArchiveEntryId();
+
+        // Das Ergebnis zuerst: in abgeschnittenen Konsolen zählen die ersten Zeilen.
+        $this->info('Archivierung erfolgreich (Status ' . ($meta['status'] ?? '—') . ').');
+        if ($legacyId) {
+            $this->info('Erkannte ID: ' . $legacyId);
+        } else {
+            $this->warn('In der Antwort war keine ID zu erkennen.');
+        }
+
+        $uuid = null;
+        $exitCode = 0;
+
+        if ($legacyId) {
+            $this->line('Löse die ID über /api/archive-entries/id-mapping auf …');
+            $mapping = $archiveClient->mapArchiveEntryId($legacyId);
+            if ($mapping === null) {
+                $this->error('Mapping fehlgeschlagen: ' . $archiveClient->getLastError());
+                $this->line('Möglicherweise ist die erkannte ID nicht die Legacy-ID des Archiveintrags.');
+                $exitCode = 1;
+            } else {
+                $uuid = $this->extractUuid($mapping);
+                $this->info('Mapping erfolgreich: ' . $legacyId . ' → ' . ($uuid ?: json_encode($mapping)));
+                $this->info('Ergebnis: Der Weg "Legacy-POST → ID → id-mapping → PATCH" funktioniert.');
+            }
+        } else {
+            $this->line('Die Header unten zeigen, ob die ID an anderer Stelle steht. Falls nicht, führt der Weg');
+            $this->line('über den Backfill (Abgleich per GET /archive-entries) oder den neuen Schreibpfad.');
+            $exitCode = 1;
+        }
+
+        $this->cleanUp($archiveClient, $customerId, $uuid);
+
+        $this->line('');
+        $this->line('Vollständige Antwort der Mitarbeiter-API:');
         $this->line('  Status: ' . ($meta['status'] ?? '—'));
         $this->line('  Header:');
         foreach ($meta['headers'] ?? [] as $name => $value) {
@@ -107,53 +141,54 @@ class ProbeArchiveId extends Command
         }
         $body = trim((string) ($meta['body'] ?? ''));
         $this->line('  Body: ' . ($body === '' ? '(leer)' : $body));
-        $this->line('');
 
-        $legacyId = $crmClient->getLastArchiveEntryId();
-        if (!$legacyId) {
-            $this->warn('In der Antwort war keine ID zu erkennen.');
-            $this->line('Die Header oben zeigen, ob die ID an anderer Stelle steht. Falls nicht, führt der Weg');
-            $this->line('über den Backfill (Abgleich per GET /archive-entries) oder den neuen Schreibpfad.');
-            return 1;
-        }
+        return $exitCode;
+    }
 
-        $this->info('Erkannte ID: ' . $legacyId);
-
-        if (!$archiveClient->isConfigured()) {
-            $this->warn('Keine URL für die Archive-API hinterlegt — das ID-Mapping wird übersprungen.');
-            return 0;
-        }
-
-        $this->line('Löse die ID über /api/archive-entries/id-mapping auf …');
-        $mapping = $archiveClient->mapArchiveEntryId($legacyId);
-        if ($mapping === null) {
-            $this->error('Mapping fehlgeschlagen: ' . $archiveClient->getLastError());
-            $this->line('Möglicherweise ist die erkannte ID nicht die Legacy-ID des Archiveintrags.');
-            return 1;
-        }
-
-        $uuid = $this->extractUuid($mapping);
-        $this->info('Mapping erfolgreich: ' . $legacyId . ' → ' . ($uuid ?: json_encode($mapping)));
-        $this->line('');
-        $this->info('Ergebnis: Der Weg "Legacy-POST → ID → id-mapping → PATCH" funktioniert.');
-
-        if ($this->option('cleanup')) {
-            if (!$uuid) {
-                $this->warn('Ohne UUID kann der Testeintrag nicht automatisch gelöscht werden.');
-                return 0;
-            }
-            $this->line('Lösche den Testeintrag …');
-            if ($archiveClient->deleteArchiveEntry($customerId, $uuid)) {
-                $this->info('Testeintrag gelöscht.');
-            } else {
-                $this->error('Löschen fehlgeschlagen: ' . $archiveClient->getLastError());
-                $this->line('Bitte den Eintrag "FreeScout Verbindungstest" in der Ameise von Hand entfernen.');
-            }
-        } else {
+    /**
+     * Der Testeintrag muss auch dann verschwinden, wenn die Auswertung scheitert.
+     * Ohne UUID aus dem Mapping wird er über die Eintragsliste gesucht.
+     */
+    private function cleanUp(ArchiveApiClient $archiveClient, $customerId, $uuid)
+    {
+        if (!$this->option('cleanup')) {
             $this->comment('Der Testeintrag bleibt bestehen. Mit --cleanup wird er direkt wieder gelöscht.');
+            return;
         }
 
-        return 0;
+        $uuid = $uuid ?: $this->findProbeEntryId($archiveClient, $customerId);
+        if (!$uuid) {
+            $this->error('Der Testeintrag konnte nicht gefunden werden.');
+            $this->warn('Bitte den Eintrag "FreeScout Verbindungstest" beim Kunden ' . $customerId . ' von Hand entfernen.');
+            return;
+        }
+
+        if ($archiveClient->deleteArchiveEntry($customerId, $uuid)) {
+            $this->info('Testeintrag gelöscht.');
+            return;
+        }
+
+        $this->error('Löschen fehlgeschlagen: ' . $archiveClient->getLastError());
+        $this->warn('Bitte den Eintrag "FreeScout Verbindungstest" beim Kunden ' . $customerId . ' von Hand entfernen.');
+    }
+
+    /**
+     * Sucht den eben angelegten Testeintrag über die Eintragsliste des Kunden.
+     */
+    private function findProbeEntryId(ArchiveApiClient $archiveClient, $customerId)
+    {
+        $list = $archiveClient->listArchiveEntries($customerId, [
+            'pageSize' => 20,
+            'name' => 'FreeScout Verbindungstest',
+        ]);
+
+        foreach ($list['items'] ?? [] as $item) {
+            if (($item['subject'] ?? '') === 'FreeScout Verbindungstest' && !empty($item['id'])) {
+                return $item['id'];
+            }
+        }
+
+        return null;
     }
 
     /**
