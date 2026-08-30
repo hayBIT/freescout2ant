@@ -40,8 +40,15 @@ php artisan ameise:archive-api-check
 ```
 
 Der Befehl nutzt die Ameise-Verbindung des ersten verbundenen Benutzers; mit
-`--user=<ID>` lässt sich ein bestimmter Benutzer wählen. Ein `403` bedeutet in aller
-Regel, dass der OAuth-Scope die Archive-API nicht einschließt.
+`--user=<ID>` lässt sich ein bestimmter Benutzer wählen, mit `--customer=<Nummer>`
+werden zusätzlich die kundenbezogenen Endpunkte geprüft. Ausgegeben werden der
+angefragte Scope, der im Token hinterlegte Scope und je Endpunkt Status und Antwort.
+
+Enden alle Aufrufe mit `403`, trägt das gespeicherte Token den Scope der Archive-API
+nicht. Der Scope wird beim Verbinden angefragt und ist danach im Token festgeschrieben —
+eine Erweiterung von `AMEISE_SCOPE` wirkt deshalb erst nach einer neuen Anmeldung:
+Scope ergänzen, Verbindung trennen (Token-Datei `storage/user_<ID>_ant.txt` entfernen),
+in FreeScout neu verbinden.
 
 Ob die Mitarbeiter-API beim Archivieren eine Eintrags-ID zurückgibt — die Voraussetzung
 dafür, einen Eintrag später zu bearbeiten — beantwortet:

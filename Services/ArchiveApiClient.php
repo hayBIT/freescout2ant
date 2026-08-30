@@ -38,6 +38,7 @@ class ArchiveApiClient
     private $baseUrl;
     private $lastError;
     private $lastStatusCode;
+    private $lastResponseBody;
 
     public function __construct(TokenService $tokenService, ?Client $client = null)
     {
@@ -68,6 +69,15 @@ class ArchiveApiClient
     public function getLastStatusCode()
     {
         return $this->lastStatusCode;
+    }
+
+    /**
+     * Roher Antwortkörper des letzten Aufrufs — bei einem 403 nennt er oft den
+     * fehlenden Scope.
+     */
+    public function getLastResponseBody()
+    {
+        return $this->lastResponseBody;
     }
 
     // --- Archiveinträge -----------------------------------------------------
@@ -291,6 +301,7 @@ class ArchiveApiClient
     {
         $this->lastError = null;
         $this->lastStatusCode = null;
+        $this->lastResponseBody = null;
 
         if (!$this->isConfigured()) {
             $this->lastError = __('Es ist keine URL für die Archive-API hinterlegt.');
@@ -323,6 +334,7 @@ class ArchiveApiClient
             $errorResponse = $e->getResponse();
             if ($errorResponse !== null) {
                 $this->lastStatusCode = $errorResponse->getStatusCode();
+                $this->lastResponseBody = (string) $errorResponse->getBody();
                 $this->ameiseLogStatus && \Helper::log(
                     $logContext,
                     'Error body: ' . $this->sanitizeLogText((string) $errorResponse->getBody())
@@ -338,6 +350,7 @@ class ArchiveApiClient
 
         $status = $response->getStatusCode();
         $this->lastStatusCode = $status;
+        $this->lastResponseBody = (string) $response->getBody();
         $this->ameiseLogStatus && \Helper::log($logContext, 'Response status: ' . $status);
 
         if ($status >= 200 && $status < 300) {
@@ -387,10 +400,10 @@ class ArchiveApiClient
         }
 
         if ($status === 403) {
-            return __('Keine Berechtigung für diesen Archiveintrag.');
+            return __('Zugriff verweigert (403).');
         }
         if ($status === 404) {
-            return __('Der Archiveintrag wurde nicht gefunden.');
+            return __('Nicht gefunden (404).');
         }
 
         return __('Die Archive-API hat die Anfrage abgelehnt (Status :status).', ['status' => $status]);
