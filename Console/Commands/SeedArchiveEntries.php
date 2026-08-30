@@ -28,7 +28,8 @@ class SeedArchiveEntries extends Command
 
     protected $signature = 'ameise:seed-archive-entries
         {--conversation= : Nur diese Konversation}
-        {--limit=1000 : Höchstzahl der Threads je Lauf}
+        {--limit=1000 : Höchstzahl der Threads je Lauf; 0 für alle}
+        {--offset=0 : Threads am Anfang überspringen, um in Etappen zu arbeiten}
         {--dry-run : Nur zeigen, was angelegt würde}
         {--out= : Die vollständige Ausgabe zusätzlich in diese Datei schreiben}';
 
@@ -48,14 +49,28 @@ class SeedArchiveEntries extends Command
         if ($conversationId = $this->option('conversation')) {
             $query->where('conversation_id', $conversationId);
         }
-        $archiveThreads = $query->limit((int) $this->option('limit'))->get();
+
+        $total = (clone $query)->count();
+        $limit = (int) $this->option('limit');
+        $offset = (int) $this->option('offset');
+
+        if ($offset > 0) {
+            $query->skip($offset);
+        }
+        if ($limit > 0) {
+            $query->limit($limit);
+        }
+        $archiveThreads = $query->get();
 
         if ($archiveThreads->isEmpty()) {
             $this->info('Keine archivierten Threads gefunden.');
             return 0;
         }
 
-        $this->line('Archivierte Threads: ' . $archiveThreads->count());
+        $this->line('Archivierte Threads insgesamt: ' . $total);
+        $this->line('Bereits erfasste Einträge:     ' . CrmArchiveEntry::count());
+        $this->line('In diesem Lauf betrachtet:     ' . $archiveThreads->count()
+            . ($offset > 0 ? ' (ab ' . $offset . ')' : ''));
         if ($this->option('dry-run')) {
             $this->comment('Probelauf — es wird nichts gespeichert.');
         }
@@ -91,6 +106,13 @@ class SeedArchiveEntries extends Command
         $this->line('  bereits bekannt: ' . $skipped);
         if ($incomplete > 0) {
             $this->line('  übersprungen:    ' . $incomplete . ' (Thread oder Zuordnung nicht mehr vorhanden)');
+        }
+
+        $rest = $total - ($offset + $archiveThreads->count());
+        if ($rest > 0) {
+            $this->line('');
+            $this->comment('Noch offen: ' . $rest . ' Threads. Nächste Etappe mit --offset='
+                . ($offset + $archiveThreads->count()) . ' oder --limit=0 für alle auf einmal.');
         }
 
         if ($created > 0 && !$this->option('dry-run')) {
