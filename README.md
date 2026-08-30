@@ -90,7 +90,15 @@ nicht.
 
 Das anschließende Auflösen der UUIDs kostet dagegen etwa einen API-Aufruf je Thread. Bei
 einem grossen Bestand ist ein vollständiger Durchlauf deshalb nicht sinnvoll — besser
-gezielt für die Konversationen, die bearbeitet werden sollen:
+gezielt für die Konversationen, die bearbeitet werden sollen. Welche das sein können,
+zeigt ohne API-Zugriff:
+
+```
+php artisan ameise:resolve-archive-ids --list
+```
+
+Die Konversations-ID steht auch in der Adresszeile von FreeScout
+(`…/conversation/12345`). Damit dann:
 
 ```
 php artisan ameise:resolve-archive-ids --conversation=<ID>

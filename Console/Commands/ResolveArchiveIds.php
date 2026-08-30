@@ -24,6 +24,7 @@ class ResolveArchiveIds extends Command
         {--conversation= : Nur Einträge dieser Konversation}
         {--user= : Nur Einträge, die dieser Benutzer archiviert hat}
         {--retry-unmapped : Auch bereits als nicht zuordenbar markierte Einträge erneut versuchen}
+        {--list : Nur zeigen, welche Konversationen offene Einträge haben — ohne API-Aufruf}
         {--out= : Die vollständige Ausgabe zusätzlich in diese Datei schreiben}';
 
     protected $description = 'Ermittelt die UUIDs archivierter Einträge über die Archive-API';
@@ -44,15 +45,21 @@ class ResolveArchiveIds extends Command
             $states[] = CrmArchiveEntry::STATE_MISSING;
         }
 
+        // Neueste zuerst: frisch archivierte Einträge sind die, die jemand
+        // bearbeiten will, und ihre Zeitstempel sind am verlässlichsten.
         $query = CrmArchiveEntry::whereNull('archive_entry_id')
             ->whereIn('sync_state', $states)
-            ->orderBy('entry_date');
+            ->orderByDesc('entry_date');
 
         if ($conversationId = $this->option('conversation')) {
             $query->where('conversation_id', $conversationId);
         }
         if ($userId = $this->option('user')) {
             $query->where('archived_by', $userId);
+        }
+
+        if ($this->option('list')) {
+            return $this->listConversations($query);
         }
 
         $entries = $query->limit((int) $this->option('limit'))->get();
@@ -96,6 +103,39 @@ class ResolveArchiveIds extends Command
         foreach ($counts as $state => $count) {
             $this->line('  ' . str_pad($state, 16) . $count);
         }
+
+        return 0;
+    }
+
+    /**
+     * Zeigt, welche Konversationen offene Einträge haben — als Startpunkt für
+     * einen gezielten Lauf. Rein lokal, ohne Zugriff auf die Ameise.
+     */
+    private function listConversations($query)
+    {
+        $rows = (clone $query)
+            ->selectRaw('conversation_id, customer_id, count(*) as anzahl, max(entry_date) as letzte, min(subject) as betreff')
+            ->groupBy('conversation_id', 'customer_id')
+            ->orderByDesc('letzte')
+            ->limit(20)
+            ->get();
+
+        if ($rows->isEmpty()) {
+            $this->info('Keine offenen Einträge.');
+            return 0;
+        }
+
+        $this->line('Konversationen mit offenen Einträgen (neueste zuerst):');
+        $this->line('');
+        foreach ($rows as $row) {
+            $this->line('  --conversation=' . str_pad($row->conversation_id, 8)
+                . str_pad($row->anzahl . ' Einträge', 14)
+                . substr((string) $row->letzte, 0, 16)
+                . '  ' . mb_substr((string) $row->betreff, 0, 50));
+        }
+
+        $this->line('');
+        $this->line('Insgesamt offen: ' . CrmArchiveEntry::whereNull('archive_entry_id')->count());
 
         return 0;
     }
