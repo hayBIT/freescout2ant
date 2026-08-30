@@ -29,6 +29,9 @@ class SeedArchiveEntries extends Command
     /** Threads je Durchgang — begrenzt Speicher und Abfragen. */
     private const CHUNK_SIZE = 500;
 
+    /** Abstand der Fortschrittsmeldungen. */
+    private const PROGRESS_EVERY = 5000;
+
     protected $signature = 'ameise:seed-archive-entries
         {--conversation= : Nur diese Konversation}
         {--limit=1000 : Höchstzahl der Threads je Lauf; 0 für alle}
@@ -128,7 +131,9 @@ class SeedArchiveEntries extends Command
             }
 
             $done += $archiveThreads->count();
-            if ($ids->count() > self::CHUNK_SIZE) {
+            // Sparsam melden: Aufgabenplaner kürzen die Anzeige, und die
+            // Zusammenfassung am Ende ist wichtiger als der Fortschritt.
+            if ($ids->count() > self::PROGRESS_EVERY && $done % self::PROGRESS_EVERY < self::CHUNK_SIZE) {
                 $this->line('  … ' . $done . ' von ' . $ids->count() . ' Threads');
             }
         }
