@@ -67,7 +67,14 @@ php artisan ameise:archive-probe --customer=<Kundennummer> --cleanup
 
 Der Befehl legt einen Testeintrag beim genannten Kunden an (mit Rückfrage), zeigt Status,
 Header und Body der Antwort, versucht die erkannte ID über `id-mapping` aufzulösen und
-löscht den Testeintrag mit `--cleanup` anschließend wieder. Alternativ genügt es,
+löscht den Testeintrag mit `--cleanup` anschließend wieder. In nicht-interaktiven
+Umgebungen (Cron, Plesk-Aufgaben) ist zusätzlich `--force` nötig.
+
+Liegengebliebene Testeinträge entfernt, ohne einen neuen anzulegen:
+
+```
+php artisan ameise:archive-probe --customer=<Kundennummer> --cleanup-only
+``` Alternativ genügt es,
 `AMEISE_LOG_STATUS=true` zu setzen und eine beliebige Konversation wie gewohnt zu
 archivieren: Header, Body und die erkannte ID stehen dann im Log.
 

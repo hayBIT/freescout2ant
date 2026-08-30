@@ -23,9 +23,13 @@ class ProbeArchiveId extends Command
         {--user= : ID des FreeScout-Benutzers, dessen Ameise-Verbindung genutzt wird}
         {--type=email : Wert für X-Dio-Typ}
         {--cleanup : Den Testeintrag anschließend über die Archive-API löschen}
+        {--cleanup-only : Nichts anlegen, nur liegengebliebene Testeinträge des Kunden entfernen}
         {--force : Ohne Rückfrage ausführen}';
 
     protected $description = 'Prüft, ob die Ameise beim Archivieren eine Eintrags-ID zurückgibt';
+
+    /** Betreff, an dem die Testeinträge dieses Befehls erkennbar sind. */
+    private const PROBE_SUBJECT = 'FreeScout Verbindungstest';
 
     public function handle()
     {
@@ -56,10 +60,14 @@ class ProbeArchiveId extends Command
         $this->line('');
 
         // Ohne Archive-API bliebe der Testeintrag stehen — das vor dem Anlegen klären.
-        if ($this->option('cleanup') && !$archiveClient->isConfigured()) {
+        if (($this->option('cleanup') || $this->option('cleanup-only')) && !$archiveClient->isConfigured()) {
             $this->error('--cleanup verlangt eine hinterlegte Archive-API-URL, sonst lässt sich der Testeintrag nicht wieder löschen.');
             $this->line('Bitte unter Einstellungen → Ameise eintragen oder --cleanup weglassen und den Eintrag von Hand entfernen.');
             return 1;
+        }
+
+        if ($this->option('cleanup-only')) {
+            return $this->removeLeftovers($archiveClient, $customerId);
         }
 
         $this->warn('Es wird ein echter Archiveintrag beim genannten Kunden angelegt.');
@@ -85,7 +93,7 @@ class ProbeArchiveId extends Command
 
         $archived = $crmClient->archiveConversation([
             'type' => $this->option('type'),
-            'subject' => 'FreeScout Verbindungstest',
+            'subject' => self::PROBE_SUBJECT,
             'body' => "Testeintrag aus FreeScout zur Prüfung der Archivierungsschnittstelle.\r\nKann gelöscht werden.",
             'Content-Type' => 'text/plain; charset=utf-8',
             'x-dio-metadaten' => [['Value' => 'Quelle', 'Text' => 'ameise:archive-probe']],
@@ -159,7 +167,7 @@ class ProbeArchiveId extends Command
         $uuid = $uuid ?: $this->findProbeEntryId($archiveClient, $customerId);
         if (!$uuid) {
             $this->error('Der Testeintrag konnte nicht gefunden werden.');
-            $this->warn('Bitte den Eintrag "FreeScout Verbindungstest" beim Kunden ' . $customerId . ' von Hand entfernen.');
+            $this->warn('Bitte den Eintrag "' . self::PROBE_SUBJECT . '" beim Kunden ' . $customerId . ' von Hand entfernen.');
             return;
         }
 
@@ -169,7 +177,54 @@ class ProbeArchiveId extends Command
         }
 
         $this->error('Löschen fehlgeschlagen: ' . $archiveClient->getLastError());
-        $this->warn('Bitte den Eintrag "FreeScout Verbindungstest" beim Kunden ' . $customerId . ' von Hand entfernen.');
+        $this->warn('Bitte den Eintrag "' . self::PROBE_SUBJECT . '" beim Kunden ' . $customerId . ' von Hand entfernen.');
+    }
+
+    /**
+     * Entfernt alle Testeinträge dieses Befehls beim Kunden — für Läufe, die
+     * vorzeitig abgebrochen sind und ihren Eintrag hinterlassen haben.
+     */
+    private function removeLeftovers(ArchiveApiClient $archiveClient, $customerId)
+    {
+        $list = $archiveClient->listArchiveEntries($customerId, [
+            'pageSize' => 100,
+            'name' => self::PROBE_SUBJECT,
+        ]);
+
+        if ($list === null) {
+            $this->error('Die Eintragsliste konnte nicht gelesen werden: ' . $archiveClient->getLastError());
+            return 1;
+        }
+
+        $found = [];
+        foreach ($list['items'] ?? [] as $item) {
+            if (($item['subject'] ?? '') === self::PROBE_SUBJECT && !empty($item['id'])) {
+                $found[$item['id']] = $item['date'] ?? '';
+            }
+        }
+
+        if (empty($found)) {
+            $this->info('Keine Testeinträge gefunden.');
+            return 0;
+        }
+
+        $this->line('Gefundene Testeinträge: ' . count($found));
+        $failed = 0;
+        foreach ($found as $id => $date) {
+            if ($archiveClient->deleteArchiveEntry($customerId, $id)) {
+                $this->info('  gelöscht: ' . $id . ($date ? ' (' . $date . ')' : ''));
+            } else {
+                $this->error('  fehlgeschlagen: ' . $id . ' — ' . $archiveClient->getLastError());
+                $failed++;
+            }
+        }
+
+        if ($failed > 0) {
+            $this->warn('Bitte die verbliebenen Einträge "' . self::PROBE_SUBJECT . '" in der Ameise von Hand entfernen.');
+            return 1;
+        }
+
+        return 0;
     }
 
     /**
@@ -179,11 +234,11 @@ class ProbeArchiveId extends Command
     {
         $list = $archiveClient->listArchiveEntries($customerId, [
             'pageSize' => 20,
-            'name' => 'FreeScout Verbindungstest',
+            'name' => self::PROBE_SUBJECT,
         ]);
 
         foreach ($list['items'] ?? [] as $item) {
-            if (($item['subject'] ?? '') === 'FreeScout Verbindungstest' && !empty($item['id'])) {
+            if (($item['subject'] ?? '') === self::PROBE_SUBJECT && !empty($item['id'])) {
                 return $item['id'];
             }
         }
