@@ -39,7 +39,7 @@ class ArchiveApiClient
     private $lastError;
     private $lastStatusCode;
 
-    public function __construct(TokenService $tokenService, Client $client = null)
+    public function __construct(TokenService $tokenService, ?Client $client = null)
     {
         $this->tokenService = $tokenService;
         $this->ameiseLogStatus = config('ameisemodule.ameise_log_status');
