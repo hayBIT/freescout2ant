@@ -23,6 +23,7 @@ class ListArchiveEntries extends Command
         {--customer= : Ameise-Kundennummer}
         {--user= : ID des FreeScout-Benutzers, dessen Ameise-Verbindung genutzt wird}
         {--name= : Nur Einträge, deren Betreff diesen Text enthält (mindestens 3 Zeichen)}
+        {--entry= : Statt der Liste einen einzelnen Eintrag über GET /archive-entries/{id} abrufen}
         {--limit=20 : Anzahl der Einträge}
         {--raw : Den ersten Eintrag zusätzlich als JSON ausgeben}
         {--out= : Die vollständige Ausgabe zusätzlich in diese Datei schreiben}';
@@ -60,6 +61,11 @@ class ListArchiveEntries extends Command
 
         $this->line('Benutzer: ' . (optional($user)->getFullName() ?: 'unbekannt') . ' (' . $userId . ')');
         $this->line('Kunde:    ' . $customerId);
+
+        $entryId = trim((string) $this->option('entry'));
+        if ($entryId !== '') {
+            return $this->showEntry($client, $customerId, $entryId);
+        }
 
         $filters = ['pageSize' => (int) $this->option('limit')];
         $name = trim((string) $this->option('name'));
@@ -118,6 +124,48 @@ class ListArchiveEntries extends Command
             $this->line('Erster Eintrag vollständig:');
             $this->line(json_encode($items[0], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
         }
+
+        return 0;
+    }
+
+    /**
+     * Ruft einen einzelnen Eintrag ab — einmal ohne und einmal mit Kundenkontext.
+     * Damit lässt sich prüfen, ob die ID aus der Mitarbeiter-API hier direkt greift.
+     */
+    private function showEntry(ArchiveApiClient $client, $customerId, $entryId)
+    {
+        $this->line('Eintrag:  ' . $entryId);
+        $this->line('');
+
+        $routes = [
+            'GET /archive-entries/' . $entryId => function () use ($client, $entryId) {
+                return $client->getArchiveEntry($entryId);
+            },
+            'GET /customers/' . $customerId . '/archive-entries/' . $entryId => function () use ($client, $customerId, $entryId) {
+                return $client->getCustomerArchiveEntry($customerId, $entryId);
+            },
+        ];
+
+        $found = null;
+        foreach ($routes as $label => $call) {
+            $result = $call();
+            if ($result !== null) {
+                $this->line('  <info>OK</info>    ' . $label . ' (' . $client->getLastStatusCode() . ')');
+                $found = $found ?: $result;
+                continue;
+            }
+            $this->line('  <error>FEHL</error>  ' . $label . ' (' . ($client->getLastStatusCode() ?: 'kein Status') . ') — ' . $client->getLastError());
+        }
+
+        if ($found === null) {
+            $this->line('');
+            $this->warn('Die ID ist über keinen der beiden Wege abrufbar.');
+            return 1;
+        }
+
+        $this->line('');
+        $this->info('Die ID adressiert einen Eintrag der Archive-API.');
+        $this->line(json_encode($found, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
 
         return 0;
     }
