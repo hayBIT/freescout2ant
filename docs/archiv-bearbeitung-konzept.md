@@ -217,10 +217,14 @@ muss Archivieren, Nacharchivieren per Cron und Weiterleiten exakt wie heute funk
 
 ## 10. Offene Punkte
 
-* Stimmt der Host der Testumgebung? Der Standardwert
-  `https://customer-archives-ameiseapis.inte.dionera.dev` ist aus dem Muster der übrigen
-  `inte`-Hosts abgeleitet, die OpenAPI-Datei nennt nur den lokalen Entwicklungs-Host.
-  `php artisan ameise:archive-api-check` beantwortet das.
+* ~~Welcher Scope, welcher Host?~~ **Geklärt am 30.08.2026:** Live-Host ist
+  `https://customer-archives.ameiseapis.com`, der Scope heißt `ameise.customer-archives`.
+  Mit `ameise/mitarbeiterwebservice ameise.customer-archives offline` antworten
+  `contracts/tags`, `customers/tags`, `customers/{id}/tags` und
+  `customers/{id}/archive-entries` jeweils mit 200. Der Scope wird **nicht** als
+  Standard ins Modul übernommen: Mandanten, deren Client ihn nicht führt, bekämen sonst
+  beim Verbinden ein `invalid_scope` und stünden ohne Archivierung da (siehe 8a).
+  Der Host der Testumgebung ist weiterhin ungeprüft.
 * Liefert der Legacy-POST `archiveintraege` eine ID (Location-Header oder Body)? Davon hängt
   ab, ob Phase 0 ohne Backfill auskommt.
 * OAuth-Scope und Produktiv-Host der Archive-API — die YAML nennt nur

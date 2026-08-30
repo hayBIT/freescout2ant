@@ -21,7 +21,9 @@ Log in to Ameise to connect.
 ## Archive-API (Bearbeiten von Archiveinträgen)
 
 Zum nachträglichen Ändern von Archiveinträgen wird die Archive-API
-(`customer-archives`) genutzt. Sie ist eine Ergänzung, keine Voraussetzung: das
+(`customer-archives`) genutzt. Live-Host: `https://customer-archives.ameiseapis.com`.
+Benötigter OAuth-Scope: `ameise.customer-archives` (mit Punkt, abweichend von
+`ameise/mitarbeiterwebservice`). Sie ist eine Ergänzung, keine Voraussetzung: das
 Archivieren selbst läuft unverändert über die Mitarbeiter-API. Ohne hinterlegte URL oder
 ohne passenden OAuth-Scope funktioniert das Modul wie bisher, nur ohne die
 Bearbeitungsfunktionen. Ihr Host wird unter **Einstellungen → Ameise** im Feld
@@ -29,7 +31,8 @@ Bearbeitungsfunktionen. Ihr Host wird unter **Einstellungen → Ameise** im Feld
 `AMEISE_ARCHIVE_API_URL`.
 
 * **Test-Modus:** Bleibt das Feld leer, wird
-  `https://customer-archives-ameiseapis.inte.dionera.dev` verwendet.
+  `https://customer-archives-ameiseapis.inte.dionera.dev` verwendet. Dieser Wert ist aus
+  der OpenAPI-Datei abgeleitet und nicht verifiziert — im Zweifel eintragen.
 * **Live-Modus:** Der Host muss gesetzt werden — ohne Eintrag bleiben die
   Funktionen der Archive-API deaktiviert, statt Anfragen an einen falschen Host zu senden.
 
@@ -49,7 +52,8 @@ nicht. Der Scope wird beim Verbinden angefragt und ist danach im Token festgesch
 eine Änderung wirkt deshalb erst nach einer neuen Anmeldung:
 
 1. Unter **Einstellungen → Ameise** im Feld `OAuth Scope` den Scope der Archive-API
-   ergänzen (alternativ `AMEISE_SCOPE` in der `.env`).
+   ergänzen (alternativ `AMEISE_SCOPE` in der `.env`), also z. B.
+   `ameise/mitarbeiterwebservice ameise.customer-archives offline`.
 2. Verbindung trennen: `php artisan ameise:disconnect --user=<ID>` oder `--all`.
 3. In FreeScout über das rote Ameisen-Symbol neu verbinden.
 4. `php artisan ameise:archive-api-check` erneut ausführen.
