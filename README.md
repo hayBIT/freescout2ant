@@ -46,9 +46,13 @@ angefragte Scope, der im Token hinterlegte Scope und je Endpunkt Status und Antw
 
 Enden alle Aufrufe mit `403`, trägt das gespeicherte Token den Scope der Archive-API
 nicht. Der Scope wird beim Verbinden angefragt und ist danach im Token festgeschrieben —
-eine Erweiterung von `AMEISE_SCOPE` wirkt deshalb erst nach einer neuen Anmeldung:
-Scope ergänzen, Verbindung trennen (Token-Datei `storage/user_<ID>_ant.txt` entfernen),
-in FreeScout neu verbinden.
+eine Änderung wirkt deshalb erst nach einer neuen Anmeldung:
+
+1. Unter **Einstellungen → Ameise** im Feld `OAuth Scope` den Scope der Archive-API
+   ergänzen (alternativ `AMEISE_SCOPE` in der `.env`).
+2. Verbindung trennen: `php artisan ameise:disconnect --user=<ID>` oder `--all`.
+3. In FreeScout über das rote Ameisen-Symbol neu verbinden.
+4. `php artisan ameise:archive-api-check` erneut ausführen.
 
 Ob die Mitarbeiter-API beim Archivieren eine Eintrags-ID zurückgibt — die Voraussetzung
 dafür, einen Eintrag später zu bearbeiten — beantwortet:

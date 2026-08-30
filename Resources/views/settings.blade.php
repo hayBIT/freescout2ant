@@ -21,6 +21,15 @@
     </div>
 
     <div class="form-group">
+        <label for="" class="col-sm-2 control-label">{{ __('OAuth Scope') }}</label>
+
+        <div class="col-sm-6">
+            <input class="form-control" name="settings[ameise_scope]" type="text" value="{{ old('settings[ameise_scope]', $settings['ameise_scope'])}}">
+            <p class="help-block">{{ __('Beim Verbinden angefragte Berechtigungen, durch Leerzeichen getrennt. Der Scope wird im Token festgeschrieben: eine Änderung wirkt erst, nachdem die Verbindung getrennt und neu hergestellt wurde.') }}</p>
+        </div>
+    </div>
+
+    <div class="form-group">
       <label for="" class="col-sm-2 control-label">{{ __('Client ID') }}</label>
 
       <div class="col-sm-6">
