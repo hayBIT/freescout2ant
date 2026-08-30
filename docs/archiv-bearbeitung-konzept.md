@@ -35,7 +35,7 @@ Aus `customerarchives.yaml`:
 | Eintrag ändern | `PATCH /api/customers/{customerId}/archive-entries/{archiveEntryId}` | Kern des Ganzen |
 | Eintrag lesen | `GET .../archive-entries/{archiveEntryId}` | Read-Modify-Write-Basis |
 | Einträge listen | `GET .../archive-entries` | Filter `contracts[]`, `contractLines[]`, `tags[]`, `types[]`, `dateMin/Max`, `isDeleted`, `isPublic` |
-| Eintrag löschen | `DELETE .../archive-entries/{id}` bzw. `isDeleted: true` | Soft-Delete über PATCH ist revidierbar |
+| Eintrag löschen | ~~`DELETE .../archive-entries/{id}`~~ · `isDeleted: true` | **DELETE antwortet mit 403.** Löschen läuft ausschließlich als Soft-Delete über PATCH — und bleibt damit revidierbar |
 | Änderungsprotokoll | `GET .../archive-entries/{id}/logs?module=general\|metadata\|tags\|relations` | Wer hat wann was geändert |
 | Tag-Vorschläge | `GET /api/customers/{id}/tags`, `/api/contracts/tags`, `/api/contracts/{id}/tags` | Für Autocomplete |
 | Datei-Download | `GET .../archive-entries/{id}/files/{fileId}` | Vorschau im Dialog |
@@ -63,6 +63,13 @@ Das Modul spricht also künftig **zwei** Backends; der `TokenService` bleibt der
 > Archivieren eine ID im JSON-Body (`Status 200`, z. B. `5d0bcf195ed0880bbcd5`) — kein
 > `Location`-Header. Die Archive-API führt dagegen UUIDs
 > (`4baa95fc-ff3d-4831-9dae-73d3ca15cc21`). Beide Identitäten sind verschieden.
+>
+> **Schreibzugriff geprüft:** `PATCH` auf einen Eintrag antwortet mit 200 — das Bearbeiten
+> funktioniert, und der Read-Modify-Write-Payload aus `ArchiveEntryPayload` wird von der
+> API unverändert angenommen. `DELETE` dagegen endet mit 403. Löschen ist deshalb
+> ausschließlich als Soft-Delete über `isDeleted: true` vorgesehen; die GUI bietet gar kein
+> hartes Löschen an. Das entspricht ohnehin der ursprünglichen Absicht, weil ein
+> Soft-Delete revidierbar bleibt.
 >
 > Entscheidend: Mit dem Scope `ameise.customer-archives` sind **nur die Routen unterhalb
 > von `/api/customers/{customerId}/…` zugänglich.** Die kundenunabhängigen Routen
@@ -160,7 +167,8 @@ Drei Reiter:
   `sparten`. Schalter „Auf alle Einträge dieser Konversation anwenden“.
 * **Verlauf** — Tabelle aus `/logs`, filterbar nach Modul.
 
-Fußzeile: *Löschen* (Soft-Delete via `isDeleted`), *Abbrechen*, *Speichern*.
+Fußzeile: *Löschen*, *Abbrechen*, *Speichern*. „Löschen“ setzt `isDeleted: true` — ein
+hartes `DELETE` gibt es nicht, die API verweigert es mit 403.
 
 ### 6.3 Bulk-Dialog „Zuordnung ändern“
 
@@ -243,8 +251,9 @@ muss Archivieren, Nacharchivieren per Cron und Weiterleiten exakt wie heute funk
 
 ## 10. Offene Punkte
 
-* **Offen bei Dionera:** Warum antworten `/api/archive-entries/id-mapping` und
-  `/api/archive-entries/{id}` mit 403, obwohl `ameise.customer-archives` vergeben ist?
+* **Offen bei Dionera:** Warum antworten `/api/archive-entries/id-mapping`,
+  `/api/archive-entries/{id}` und `DELETE .../archive-entries/{id}` mit 403, obwohl
+  `ameise.customer-archives` vergeben ist und `PATCH` auf denselben Eintrag durchgeht?
   Gibt es einen zusätzlichen Scope für die kundenunabhängigen Routen? Eine Freischaltung
   würde die Zuordnung über das Zeitfenster überflüssig machen.
 * ~~Welcher Scope, welcher Host?~~ **Geklärt am 30.08.2026:** Live-Host ist
