@@ -97,7 +97,7 @@ Migration legt für vorhandene `crm_archive_threads`-Zeilen `crm_archive_entries
 ## 5. Neue Bausteine im Modul
 
 ```
-Services/ArchiveApiClient.php     # neue Archive-API (GET/POST/PATCH/DELETE, logs, tags, files)
+Services/ArchiveApiClient.php     # neue Archive-API (GET/POST/PATCH/DELETE, logs, tags, files) — umgesetzt
 Services/ArchiveEntrySynchronizer.php  # Read-Modify-Write, Merge, Bulk-Zuordnung, Konflikte
 Http/Controllers/ArchiveEntryController.php  # ajax: entry_load, entry_update, entry_logs,
                                              # bulk_relations, review_queue
@@ -181,7 +181,8 @@ ein Fehlgriff der Automatik ist dann korrigierbar statt endgültig.
 
 | Phase | Inhalt | Ergebnis |
 | --- | --- | --- |
-| 0 | `ArchiveApiClient`, Config (Test-/Live-Host), Scope-Klärung, ID aus Legacy-POST übernehmen | neue Archivierungen sind identifizierbar |
+| 0 ✅ | `ArchiveApiClient`, Config (`ameise_archive_api_url`) inkl. Settings-Feld, Prüf-Command `ameise:archive-api-check` | Archive-API ist ansprechbar und verifizierbar |
+| 0b | ID aus der Antwort des Legacy-POST übernehmen | neue Archivierungen sind identifizierbar |
 | 1 | Tabelle `crm_archive_entries`, Migration, `ameise:backfill-archive-ids` | Altbestand ist zugeordnet |
 | 2 | Sidebar-Liste, Bearbeiten-Modal, Bulk-Zuordnung | manuelle Korrektur läuft |
 | 3 | `requiresReview`, Prüfliste, `ameise:sync-archive-entries` | Korrekturschleife steht |
@@ -189,6 +190,10 @@ ein Fehlgriff der Automatik ist dann korrigierbar statt endgültig.
 
 ## 10. Offene Punkte
 
+* Stimmt der Host der Testumgebung? Der Standardwert
+  `https://customer-archives-ameiseapis.inte.dionera.dev` ist aus dem Muster der übrigen
+  `inte`-Hosts abgeleitet, die OpenAPI-Datei nennt nur den lokalen Entwicklungs-Host.
+  `php artisan ameise:archive-api-check` beantwortet das.
 * Liefert der Legacy-POST `archiveintraege` eine ID (Location-Header oder Body)? Davon hängt
   ab, ob Phase 0 ohne Backfill auskommt.
 * OAuth-Scope und Produktiv-Host der Archive-API — die YAML nennt nur
