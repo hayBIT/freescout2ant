@@ -47,13 +47,23 @@ trait WritesReport
         parent::line('<info>Bericht geschrieben: ' . $path . '</info>');
     }
 
+    /**
+     * Relative Pfade beziehen sich auf das storage-Verzeichnis: Aufgabenplaner
+     * starten den Befehl nicht zwingend im FreeScout-Verzeichnis.
+     */
     private function reportPath(): string
     {
         try {
-            return trim((string) $this->option('out'));
+            $path = trim((string) $this->option('out'));
         } catch (\Exception $e) {
             return '';
         }
+
+        if ($path === '' || $path[0] === '/' || preg_match('/^[A-Za-z]:[\\\\\/]/', $path)) {
+            return $path;
+        }
+
+        return rtrim(storage_path(), '/') . '/' . ltrim($path, '/');
     }
 
     private function appendToReport($string)
@@ -65,6 +75,10 @@ trait WritesReport
 
         if (!$this->reportStarted) {
             $this->reportStarted = true;
+            $directory = dirname($path);
+            if (!is_dir($directory)) {
+                @mkdir($directory, 0755, true);
+            }
             @file_put_contents($path, '');
         }
 

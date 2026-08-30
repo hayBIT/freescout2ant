@@ -119,8 +119,10 @@ php artisan ameise:archive-entries --customer=<Kundennummer> --raw
 
 Alle Befehle schreiben mit `--out=<Datei>` ihre vollständige Ausgabe zusätzlich in eine
 Datei — fortlaufend, sodass auch bei einem abgebrochenen Lauf der bis dahin erreichte
-Stand nachlesbar bleibt. Auf manchen Installationen darf PHP nicht nach `/tmp` schreiben;
-dann einen Pfad innerhalb der Installation wählen, etwa `storage/logs/ameise-seed.txt`. Das ist in Aufgabenplanern nötig, die die Anzeige kürzen und den Befehl ohne Shell
+Stand nachlesbar bleibt. Ein relativer Pfad bezieht sich auf das
+`storage`-Verzeichnis der Installation (`--out=logs/ameise-seed.txt` landet also in
+`storage/logs/`), weil Aufgabenplaner den Befehl nicht zwingend im FreeScout-Verzeichnis
+starten. Das ist in Aufgabenplanern nötig, die die Anzeige kürzen und den Befehl ohne Shell
 ausführen — eine Umleitung mit `>` käme dort als Argument beim Befehl an. Alternativ genügt es,
 `AMEISE_LOG_STATUS=true` zu setzen und eine beliebige Konversation wie gewohnt zu
 archivieren: Header, Body und die erkannte ID stehen dann im Log.
