@@ -85,10 +85,16 @@ php artisan ameise:seed-archive-entries --limit=0
 ```
 
 Der Probelauf nennt die Gesamtzahl der archivierten Threads. `--limit=0` erfasst alle auf
-einmal, `--limit` und `--offset` erlauben Etappen. Das anschließende Auflösen der UUIDs
-kostet etwa einen API-Aufruf je Thread — bei einem grossen Bestand lohnt es sich, das
-in Etappen laufen zu lassen oder nur die Konversationen zu erfassen, die tatsächlich
-bearbeitet werden sollen (`--conversation=<ID>`).
+einmal, `--limit` und `--offset` erlauben Etappen. Das Erfassen selbst berührt die Ameise
+nicht.
+
+Das anschließende Auflösen der UUIDs kostet dagegen etwa einen API-Aufruf je Thread. Bei
+einem grossen Bestand ist ein vollständiger Durchlauf deshalb nicht sinnvoll — besser
+gezielt für die Konversationen, die bearbeitet werden sollen:
+
+```
+php artisan ameise:resolve-archive-ids --conversation=<ID>
+```
 
 Nach dem Archivieren hält FreeScout je Nachricht und Anhang fest, welcher Archiveintrag
 dazu gehört. Die UUID der Archive-API wird nachgelagert ermittelt — nicht beim
