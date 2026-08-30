@@ -18,8 +18,21 @@ use Modules\AmeiseModule\Entities\CrmArchiveEntry;
  */
 class ArchiveEntryResolver
 {
-    /** Zeitfenster um den Archivierungszeitpunkt. */
-    private const WINDOW_SECONDS = 120;
+    /**
+     * Zeitfenster um den Archivierungszeitpunkt — bewusst grob.
+     *
+     * dateMin/dateMax werden ohne Zeitzone gesendet (die API verlangt
+     * "Y-m-d H:i:s"), die Serverzeitzone ist also nicht sicher bekannt. Das
+     * Fenster deckt deshalb auch eine Verschiebung um zwei Stunden ab. Genau
+     * wird erst lokal verglichen, dort liegen die Zeitstempel mit Offset vor.
+     */
+    private const WINDOW_SECONDS = 10800;
+
+    /** Format, das die API akzeptiert (Symfony-Standard für DateTime). */
+    private const API_DATE_FORMAT = 'Y-m-d H:i:s';
+
+    /** Sicherheitsgrenze beim Blättern durch ein Zeitfenster. */
+    private const MAX_PAGES = 5;
 
     /** Zulässige Abweichung beim Datumsvergleich. */
     private const DATE_TOLERANCE_SECONDS = 2;
@@ -88,23 +101,35 @@ class ArchiveEntryResolver
      */
     private function entriesAround($customerId, $date)
     {
-        $from = Carbon::parse($date)->subSeconds(self::WINDOW_SECONDS);
-        $to = Carbon::parse($date)->addSeconds(self::WINDOW_SECONDS);
+        $from = Carbon::parse($date)->setTimezone('UTC')->subSeconds(self::WINDOW_SECONDS);
+        $to = Carbon::parse($date)->setTimezone('UTC')->addSeconds(self::WINDOW_SECONDS);
         $key = $customerId . '|' . $from->format('YmdHis') . '|' . $to->format('YmdHis');
 
         if (array_key_exists($key, $this->listCache)) {
             return $this->listCache[$key];
         }
 
-        $list = $this->client->listArchiveEntries($customerId, [
-            'pageSize' => 200,
-            'dateMin' => $from->toIso8601String(),
-            'dateMax' => $to->toIso8601String(),
-        ]);
+        $items = [];
+        for ($page = 1; $page <= self::MAX_PAGES; $page++) {
+            $list = $this->client->listArchiveEntries($customerId, [
+                'page' => $page,
+                'pageSize' => 200,
+                'dateMin' => $from->format(self::API_DATE_FORMAT),
+                'dateMax' => $to->format(self::API_DATE_FORMAT),
+            ]);
 
-        $this->listCache[$key] = $list === null ? null : ($list['items'] ?? []);
+            if ($list === null) {
+                return $this->listCache[$key] = null;
+            }
 
-        return $this->listCache[$key];
+            $items = array_merge($items, $list['items'] ?? []);
+
+            if ($page >= ($list['numberOfPages'] ?? 1)) {
+                break;
+            }
+        }
+
+        return $this->listCache[$key] = $items;
     }
 
     /**
