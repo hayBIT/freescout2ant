@@ -46,18 +46,41 @@ class ProbeArchiveId extends Command
             return 1;
         }
 
+        $tokenService = new TokenService('', $userId);
+        $archiveClient = new ArchiveApiClient($tokenService);
+
         $this->line('Modus:    ' . config('ameisemodule.ameise_mode'));
         $this->line('Benutzer: ' . $user->getFullName() . ' (' . $userId . ')');
         $this->line('Kunde:    ' . $customerId);
+        $this->line('Archive-API: ' . ($archiveClient->isConfigured() ? $archiveClient->getBaseUrl() : 'nicht konfiguriert'));
         $this->line('');
-        $this->warn('Es wird ein echter Archiveintrag beim genannten Kunden angelegt.');
 
-        if (!$this->option('force') && !$this->confirm('Fortfahren?', false)) {
-            $this->line('Abgebrochen.');
-            return 0;
+        // Ohne Archive-API bliebe der Testeintrag stehen — das vor dem Anlegen klären.
+        if ($this->option('cleanup') && !$archiveClient->isConfigured()) {
+            $this->error('--cleanup verlangt eine hinterlegte Archive-API-URL, sonst lässt sich der Testeintrag nicht wieder löschen.');
+            $this->line('Bitte unter Einstellungen → Ameise eintragen oder --cleanup weglassen und den Eintrag von Hand entfernen.');
+            return 1;
         }
 
-        $tokenService = new TokenService('', $userId);
+        $this->warn('Es wird ein echter Archiveintrag beim genannten Kunden angelegt.');
+        if (config('ameisemodule.ameise_mode') == 'live') {
+            $this->warn('Achtung: Modus "live" — der Eintrag landet in der echten Kundenakte.');
+        }
+        if (!$this->option('cleanup')) {
+            $this->warn('Ohne --cleanup bleibt der Eintrag bestehen und muss von Hand entfernt werden.');
+        }
+
+        if (!$this->option('force')) {
+            if (!$this->input->isInteractive()) {
+                $this->error('Die Rückfrage kann in dieser Umgebung nicht beantwortet werden. Bitte --force ergänzen.');
+                return 1;
+            }
+            if (!$this->confirm('Fortfahren?', false)) {
+                $this->line('Abgebrochen.');
+                return 0;
+            }
+        }
+
         $crmClient = new CrmApiClient($tokenService);
 
         $archived = $crmClient->archiveConversation([
@@ -96,7 +119,6 @@ class ProbeArchiveId extends Command
 
         $this->info('Erkannte ID: ' . $legacyId);
 
-        $archiveClient = new ArchiveApiClient($tokenService);
         if (!$archiveClient->isConfigured()) {
             $this->warn('Keine URL für die Archive-API hinterlegt — das ID-Mapping wird übersprungen.');
             return 0;
