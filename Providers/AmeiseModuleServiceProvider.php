@@ -13,6 +13,7 @@ use Modules\AmeiseModule\Console\Commands\ArchiveThreads;
 use Modules\AmeiseModule\Console\Commands\CheckArchiveApi;
 use Modules\AmeiseModule\Console\Commands\DisconnectAmeise;
 use Modules\AmeiseModule\Console\Commands\ListArchiveEntries;
+use Modules\AmeiseModule\Console\Commands\ResolveArchiveIds;
 use Modules\AmeiseModule\Console\Commands\ProbeArchiveId;
 defined('AMEISE_MODULE') || define('AMEISE_MODULE', 'ameisemodule');
 
@@ -41,6 +42,7 @@ class AmeiseModuleServiceProvider extends ServiceProvider
             ProbeArchiveId::class,
             DisconnectAmeise::class,
             ListArchiveEntries::class,
+            ResolveArchiveIds::class,
         ]);
         $this->loadMigrationsFrom(__DIR__ . '/../Database/Migrations');
         $this->hooks();

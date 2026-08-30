@@ -76,6 +76,20 @@ Liegengebliebene Testeinträge entfernt, ohne einen neuen anzulegen:
 php artisan ameise:archive-probe --customer=<Kundennummer> --cleanup-only
 ```
 
+Nach dem Archivieren hält FreeScout je Nachricht und Anhang fest, welcher Archiveintrag
+dazu gehört. Die UUID der Archive-API wird nachgelagert ermittelt — nicht beim
+Archivieren, damit ein Fehler dort die Archivierung nicht beeinträchtigt:
+
+```
+php artisan ameise:resolve-archive-ids
+```
+
+Der Befehl ordnet offene Einträge über ein Zeitfenster um den Archivierungszeitpunkt zu
+und vergleicht Datum, Betreff und Typ. Bleibt eine Zuordnung mehrdeutig, wird der Eintrag
+als `unmapped` markiert und ist damit nicht bearbeitbar — lieber das als eine falsche
+Zuordnung. Sinnvoll ist ein regelmäßiger Aufruf, sobald die Bearbeitung in der Oberfläche
+verfügbar ist.
+
 Rein lesend lassen sich die Archiveinträge eines Kunden anzeigen — inklusive der IDs,
 mit denen die Archive-API arbeitet:
 

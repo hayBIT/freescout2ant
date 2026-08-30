@@ -116,7 +116,18 @@ class AmeiseController extends Controller
                     }
                     $conversation_data = $this->archiver->createConversationData($conversation, $crm_user_id, $contracts, $divisions, $thread);
                     $archived = $scanOnly ? true : $this->apiClient->archiveConversation($conversation_data);
-                    $attachmentsArchived = $archived ? $this->archiver->archiveConversationWithAttachments($thread, $conversation_data) : false;
+                    if ($archived && !$scanOnly) {
+                        $this->archiver->getRecorder()->recordThread(
+                            $conversation,
+                            $thread,
+                            $conversation_data,
+                            $this->apiClient->getLastArchiveEntryId(),
+                            auth()->user()->id,
+                            auth()->user()->timezone,
+                            $crm_archive ? $crm_archive->id : null
+                        );
+                    }
+                    $attachmentsArchived = $archived ? $this->archiver->archiveConversationWithAttachments($thread, $conversation_data, null, $crm_archive ? $crm_archive->id : null) : false;
                     if($archived && (!$scanOnly || $attachmentsArchived)) {
                         $archivedThreadIds[] = $thread->id;
                     } else {
@@ -167,6 +178,9 @@ class AmeiseController extends Controller
                 $crm_archive->contracts = $inputs['contracts'] ?? null;
                 $crm_archive->divisions = $inputs['divisions_data'] ?? null;
                 $crm_archive->save();
+
+                // Beim ersten Archivieren entsteht die Zuordnung erst hier.
+                $this->archiver->getRecorder()->linkArchive($conversation->id, $crm_user_id, $crm_archive->id);
 
                 foreach ($archivedThreadIds as $archivedThreadId) {
                     CrmArchiveThread::create(['crm_archive_id' => $crm_archive->id,'thread_id' => $archivedThreadId,'conversation_id'=> $conversation->id ]);
