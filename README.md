@@ -76,6 +76,14 @@ Liegengebliebene Testeinträge entfernt, ohne einen neuen anzulegen:
 php artisan ameise:archive-probe --customer=<Kundennummer> --cleanup-only
 ```
 
+Für bereits archivierte Konversationen aus der Zeit vor dieser Version werden die
+Einträge einmalig aus den vorhandenen Daten rekonstruiert — ohne Zugriff auf die Ameise:
+
+```
+php artisan ameise:seed-archive-entries --dry-run
+php artisan ameise:seed-archive-entries
+```
+
 Nach dem Archivieren hält FreeScout je Nachricht und Anhang fest, welcher Archiveintrag
 dazu gehört. Die UUID der Archive-API wird nachgelagert ermittelt — nicht beim
 Archivieren, damit ein Fehler dort die Archivierung nicht beeinträchtigt:

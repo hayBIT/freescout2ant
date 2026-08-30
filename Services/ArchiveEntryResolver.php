@@ -111,13 +111,36 @@ class ArchiveEntryResolver
             ->pluck('archive_entry_id')
             ->all();
 
-        return self::candidates(
-            $items,
-            ArchiveEntryRecorder::apiType($entry->entry_type),
-            $entry->subject,
-            $entry->entry_date,
-            $taken
-        );
+        $type = ArchiveEntryRecorder::apiType($entry->entry_type);
+        $found = [];
+        foreach (self::subjectAlternatives($entry->subject, $entry->kind) as $subject) {
+            foreach (self::candidates($items, $type, $subject, $entry->entry_date, $taken) as $candidate) {
+                $found[$candidate['id']] = $candidate;
+            }
+        }
+
+        return array_values($found);
+    }
+
+    /**
+     * Bildanhänge werden vor der Archivierung in PDF gewandelt und umbenannt.
+     * Für nachträglich angelegte Datensätze ist deshalb auch der PDF-Name zu prüfen.
+     */
+    public static function subjectAlternatives($subject, $kind): array
+    {
+        $subject = (string) $subject;
+        $alternatives = [$subject];
+
+        if ($kind !== CrmArchiveEntry::KIND_ATTACHMENT) {
+            return $alternatives;
+        }
+
+        $extension = strtolower((string) pathinfo($subject, PATHINFO_EXTENSION));
+        if (in_array($extension, ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'tif', 'tiff', 'webp', 'heic'], true)) {
+            $alternatives[] = pathinfo($subject, PATHINFO_FILENAME) . '.pdf';
+        }
+
+        return $alternatives;
     }
 
     /**
