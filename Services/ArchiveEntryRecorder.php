@@ -37,7 +37,7 @@ class ArchiveEntryRecorder
             'legacy_id' => $legacyId,
             'subject' => $conversationData['subject'] ?? null,
             'entry_type' => $conversationData['type'] ?? null,
-            'entry_date' => $this->toUtc($conversationData['X-Dio-Datum'] ?? null, $timezone),
+            'entry_date' => $this->toAppTimezone($conversationData['X-Dio-Datum'] ?? null, $timezone),
         ]);
     }
 
@@ -54,7 +54,7 @@ class ArchiveEntryRecorder
             'legacy_id' => $legacyId,
             'subject' => $attachmentData['subject'] ?? null,
             'entry_type' => $attachmentData['type'] ?? null,
-            'entry_date' => $this->toUtc($attachmentData['X-Dio-Datum'] ?? null, $timezone),
+            'entry_date' => $this->toAppTimezone($attachmentData['X-Dio-Datum'] ?? null, $timezone),
         ]);
     }
 
@@ -97,15 +97,20 @@ class ArchiveEntryRecorder
 
     /**
      * X-Dio-Datum trägt keine Zeitzone, wurde aber in der des Nutzers erzeugt.
+     *
+     * Gespeichert wird in der Zeitzone der Anwendung, weil Laravel Datumsfelder
+     * beim Lesen genau so interpretiert. Ein in UTC abgelegter Wert käme sonst
+     * beim Lesen um den Offset verschoben zurück.
      */
-    private function toUtc($value, $timezone)
+    private function toAppTimezone($value, $timezone)
     {
         if (empty($value)) {
             return null;
         }
 
         try {
-            return Carbon::parse($value, $timezone ?: config('app.timezone'))->setTimezone('UTC');
+            return Carbon::parse($value, $timezone ?: config('app.timezone'))
+                ->setTimezone(config('app.timezone'));
         } catch (\Exception $e) {
             return null;
         }

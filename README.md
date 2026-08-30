@@ -104,6 +104,13 @@ Die Konversations-ID steht auch in der Adresszeile von FreeScout
 php artisan ameise:resolve-archive-ids --conversation=<ID>
 ```
 
+Wurden die Einträge mit einer Fassung vor dem 31.08.2026 angelegt, sind ihre Zeitstempel
+um den Zeitzonen-Offset verschoben und müssen einmalig korrigiert werden:
+
+```
+php artisan ameise:seed-archive-entries --refresh-dates
+```
+
 Nach dem Archivieren hält FreeScout je Nachricht und Anhang fest, welcher Archiveintrag
 dazu gehört. Die UUID der Archive-API wird nachgelagert ermittelt — nicht beim
 Archivieren, damit ein Fehler dort die Archivierung nicht beeinträchtigt:

@@ -36,6 +36,7 @@ class SeedArchiveEntries extends Command
         {--conversation= : Nur diese Konversation}
         {--limit=1000 : Höchstzahl der Threads je Lauf; 0 für alle}
         {--offset=0 : Threads am Anfang überspringen, um in Etappen zu arbeiten}
+        {--refresh-dates : Zeitstempel vorhandener Einträge aus den Threads neu setzen}
         {--dry-run : Nur zeigen, was angelegt würde}
         {--out= : Die vollständige Ausgabe zusätzlich in diese Datei schreiben}';
 
@@ -51,6 +52,10 @@ class SeedArchiveEntries extends Command
 
     private function seed()
     {
+        if ($this->option('refresh-dates')) {
+            return $this->refreshDates();
+        }
+
         $query = CrmArchiveThread::orderBy('id');
         if ($conversationId = $this->option('conversation')) {
             $query->where('conversation_id', $conversationId);
@@ -160,6 +165,74 @@ class SeedArchiveEntries extends Command
     }
 
     /**
+     * Setzt die Zeitstempel noch nicht aufgelöster Einträge neu.
+     *
+     * Nötig für Datensätze, die mit einer früheren Fassung angelegt wurden: dort
+     * wurde in UTC gespeichert, während Laravel beim Lesen die Zeitzone der
+     * Anwendung annimmt — der Wert kam also um den Offset verschoben zurück.
+     */
+    private function refreshDates()
+    {
+        $query = CrmArchiveEntry::whereNull('archive_entry_id');
+        if ($conversationId = $this->option('conversation')) {
+            $query->where('conversation_id', $conversationId);
+        }
+
+        $total = (clone $query)->count();
+        $this->line('Einträge ohne UUID: ' . $total);
+        if ($this->option('dry-run')) {
+            $this->comment('Probelauf — es wird nichts gespeichert.');
+        }
+        $this->line('');
+
+        $changed = 0;
+        $unchanged = 0;
+        $orphaned = 0;
+        $done = 0;
+
+        (clone $query)->orderBy('id')->chunk(self::CHUNK_SIZE, function ($entries) use (&$changed, &$unchanged, &$orphaned, &$done, $total) {
+            $threads = Thread::whereIn('id', $entries->pluck('thread_id')->filter()->unique())
+                ->get(['id', 'created_at'])
+                ->keyBy('id');
+
+            foreach ($entries as $entry) {
+                $thread = $threads->get($entry->thread_id);
+                if (!$thread) {
+                    $orphaned++;
+                    continue;
+                }
+
+                $date = Carbon::parse($thread->created_at)->toDateTimeString();
+                if ((string) $entry->entry_date === $date) {
+                    $unchanged++;
+                    continue;
+                }
+
+                if (!$this->option('dry-run')) {
+                    $entry->entry_date = $date;
+                    $entry->sync_state = CrmArchiveEntry::STATE_PENDING;
+                    $entry->last_error = null;
+                    $entry->save();
+                }
+                $changed++;
+            }
+
+            $done += $entries->count();
+            if ($total > self::PROGRESS_EVERY && $done % self::PROGRESS_EVERY < self::CHUNK_SIZE) {
+                $this->line('  … ' . $done . ' von ' . $total . ' Einträgen');
+            }
+        });
+
+        $this->line('  neu gesetzt:   ' . $changed);
+        $this->line('  unverändert:   ' . $unchanged);
+        if ($orphaned > 0) {
+            $this->line('  ohne Thread:   ' . $orphaned);
+        }
+
+        return 0;
+    }
+
+    /**
      * Ein Datensatz für die Nachricht, je Anhang ein weiterer — so, wie die
      * Archivierung sie damals erzeugt hat.
      */
@@ -174,7 +247,9 @@ class SeedArchiveEntries extends Command
             'thread_id' => $thread->id,
             'archived_by' => $archive->archived_by,
             'customer_id' => (string) $archive->crm_user_id,
-            'entry_date' => Carbon::parse($thread->created_at)->setTimezone('UTC')->toDateTimeString(),
+            // created_at liegt bereits in der Zeitzone der Anwendung; eine
+            // Umrechnung würde den Wert beim Zurücklesen verschieben.
+            'entry_date' => Carbon::parse($thread->created_at)->toDateTimeString(),
             'sync_state' => CrmArchiveEntry::STATE_PENDING,
             'created_at' => $now,
             'updated_at' => $now,
