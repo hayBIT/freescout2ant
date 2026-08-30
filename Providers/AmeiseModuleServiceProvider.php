@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Event;
 use Modules\AmeiseModule\Console\Commands\ArchiveThreads;
 use Modules\AmeiseModule\Console\Commands\CheckArchiveApi;
 use Modules\AmeiseModule\Console\Commands\DisconnectAmeise;
+use Modules\AmeiseModule\Console\Commands\ListArchiveEntries;
 use Modules\AmeiseModule\Console\Commands\ProbeArchiveId;
 defined('AMEISE_MODULE') || define('AMEISE_MODULE', 'ameisemodule');
 
@@ -39,6 +40,7 @@ class AmeiseModuleServiceProvider extends ServiceProvider
             CheckArchiveApi::class,
             ProbeArchiveId::class,
             DisconnectAmeise::class,
+            ListArchiveEntries::class,
         ]);
         $this->loadMigrationsFrom(__DIR__ . '/../Database/Migrations');
         $this->hooks();

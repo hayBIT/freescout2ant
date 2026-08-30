@@ -5,6 +5,7 @@ namespace Modules\AmeiseModule\Console\Commands;
 use App\User;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
+use Modules\AmeiseModule\Console\Concerns\WritesReport;
 use Modules\AmeiseModule\Services\ArchiveApiClient;
 use Modules\AmeiseModule\Services\CrmApiClient;
 use Modules\AmeiseModule\Services\TokenService;
@@ -18,13 +19,16 @@ use Modules\AmeiseModule\Services\TokenService;
  */
 class ProbeArchiveId extends Command
 {
+    use WritesReport;
+
     protected $signature = 'ameise:archive-probe
         {--customer= : Ameise-Kundennummer, bei der der Testeintrag angelegt wird}
         {--user= : ID des FreeScout-Benutzers, dessen Ameise-Verbindung genutzt wird}
         {--type=email : Wert für X-Dio-Typ}
         {--cleanup : Den Testeintrag anschließend über die Archive-API löschen}
         {--cleanup-only : Nichts anlegen, nur liegengebliebene Testeinträge des Kunden entfernen}
-        {--force : Ohne Rückfrage ausführen}';
+        {--force : Ohne Rückfrage ausführen}
+        {--out= : Die vollständige Ausgabe zusätzlich in diese Datei schreiben}';
 
     protected $description = 'Prüft, ob die Ameise beim Archivieren eine Eintrags-ID zurückgibt';
 
@@ -32,6 +36,14 @@ class ProbeArchiveId extends Command
     private const PROBE_SUBJECT = 'FreeScout Verbindungstest';
 
     public function handle()
+    {
+        $exitCode = $this->runProbe();
+        $this->writeReport();
+
+        return $exitCode;
+    }
+
+    private function runProbe()
     {
         $customerId = $this->option('customer');
         if (!$customerId) {

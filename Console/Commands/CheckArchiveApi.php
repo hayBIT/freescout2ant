@@ -4,6 +4,7 @@ namespace Modules\AmeiseModule\Console\Commands;
 
 use App\User;
 use Illuminate\Console\Command;
+use Modules\AmeiseModule\Console\Concerns\WritesReport;
 use Modules\AmeiseModule\Services\ArchiveApiClient;
 use Modules\AmeiseModule\Services\TokenService;
 
@@ -13,13 +14,24 @@ use Modules\AmeiseModule\Services\TokenService;
  */
 class CheckArchiveApi extends Command
 {
+    use WritesReport;
+
     protected $signature = 'ameise:archive-api-check
         {--user= : ID des FreeScout-Benutzers, dessen Ameise-Verbindung genutzt wird}
-        {--customer= : Kundennummer, um zusätzlich die kundenbezogenen Endpunkte zu prüfen}';
+        {--customer= : Kundennummer, um zusätzlich die kundenbezogenen Endpunkte zu prüfen}
+        {--out= : Die vollständige Ausgabe zusätzlich in diese Datei schreiben}';
 
     protected $description = 'Prüft Erreichbarkeit und Berechtigung der Archive-API';
 
     public function handle()
+    {
+        $exitCode = $this->check();
+        $this->writeReport();
+
+        return $exitCode;
+    }
+
+    private function check()
     {
         $userId = $this->option('user') ?: $this->firstConnectedUserId();
         if (!$userId) {

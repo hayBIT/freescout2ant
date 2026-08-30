@@ -74,7 +74,18 @@ Liegengebliebene Testeinträge entfernt, ohne einen neuen anzulegen:
 
 ```
 php artisan ameise:archive-probe --customer=<Kundennummer> --cleanup-only
-``` Alternativ genügt es,
+```
+
+Rein lesend lassen sich die Archiveinträge eines Kunden anzeigen — inklusive der IDs,
+mit denen die Archive-API arbeitet:
+
+```
+php artisan ameise:archive-entries --customer=<Kundennummer> --raw
+```
+
+Alle Befehle schreiben mit `--out=<Datei>` ihre vollständige Ausgabe zusätzlich in eine
+Datei. Das ist in Aufgabenplanern nötig, die die Anzeige kürzen und den Befehl ohne Shell
+ausführen — eine Umleitung mit `>` käme dort als Argument beim Befehl an. Alternativ genügt es,
 `AMEISE_LOG_STATUS=true` zu setzen und eine beliebige Konversation wie gewohnt zu
 archivieren: Header, Body und die erkannte ID stehen dann im Log.
 
