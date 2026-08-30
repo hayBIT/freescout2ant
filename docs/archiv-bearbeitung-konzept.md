@@ -59,15 +59,41 @@ Das Modul spricht also künftig **zwei** Backends; der `TokenService` bleibt der
 
 ## 3. Wie FreeScout an die Eintrags-IDs kommt
 
+> **Messergebnis vom 30.08.2026 (Live-Umgebung).** Die Mitarbeiter-API liefert beim
+> Archivieren eine ID im JSON-Body (`Status 200`, z. B. `5d0bcf195ed0880bbcd5`) — kein
+> `Location`-Header. Die Archive-API führt dagegen UUIDs
+> (`4baa95fc-ff3d-4831-9dae-73d3ca15cc21`). Beide Identitäten sind verschieden.
+>
+> Entscheidend: Mit dem Scope `ameise.customer-archives` sind **nur die Routen unterhalb
+> von `/api/customers/{customerId}/…` zugänglich.** Die kundenunabhängigen Routen
+> antworten mit 403 — sowohl `/api/archive-entries/id-mapping` als auch
+> `/api/archive-entries/{id}`. Die Legacy-ID im Kundenpfad zu verwenden endet in einem
+> 500. Weg 1 ist damit nicht gangbar, solange die oberste Ebene gesperrt ist.
+
 Drei Wege, in dieser Reihenfolge:
 
-1. **Sofort, ohne Umbau des Schreibpfads:** die Antwort des Legacy-POST auswerten
-   (`Location`-Header bzw. ID im Body), als `legacy_id` speichern und beim ersten Öffnen des
-   Bearbeiten-Dialogs per `id-mapping?legacyId=…` in die UUID auflösen (lazy, dann cachen).
-2. **Backfill für den Altbestand:** Command `ameise:backfill-archive-ids` läuft je Kunde über
-   `GET /api/customers/{id}/archive-entries` mit `dateMin`/`dateMax` aus `thread.created_at`
-   und ordnet über Datum + Betreff + Autor zu. Treffer eindeutig → speichern, sonst als
-   `sync_state = unmapped` markieren (Eintrag bleibt in der GUI sichtbar, aber nicht editierbar).
+1. ~~**Sofort über das ID-Mapping:** die Antwort des Legacy-POST auswerten und per
+   `id-mapping?legacyId=…` in die UUID auflösen.~~ **Verworfen:** der Endpunkt antwortet
+   mit 403. Die ID aus der Antwort wird trotzdem gespeichert (`legacy_id`) — sie ist der
+   Beleg für eine erfolgreiche Archivierung und wird nutzbar, sobald die oberste Ebene
+   freigeschaltet ist.
+2. **Zuordnung über das Zeitfenster — der tragende Weg.** `GET /api/customers/{id}/archive-entries`
+   mit `dateMin`/`dateMax` um den gesendeten `X-Dio-Datum`-Wert, danach Abgleich über das
+   Tripel aus Datum, Betreff und Typ:
+
+   | Eintragsart | `subject` | `date` | `type` |
+   | --- | --- | --- | --- |
+   | Nachricht | Betreff der Konversation | `thread.created_at` | `email` / `telefon` |
+   | Anhang | Dateiname | `thread.created_at` | `dokument` |
+
+   Bereits zugeordnete UUIDs werden ausgeschlossen, sodass jeder Eintrag nur einmal
+   beansprucht wird. Bleibt eine Zuordnung mehrdeutig (zwei Anhänge gleichen Namens am
+   selben Thread), gilt `sync_state = unmapped`: der Eintrag ist in der GUI sichtbar, aber
+   nicht editierbar — lieber nicht bearbeitbar als falsch zugeordnet.
+
+   Wichtig: Diese Auflösung läuft **nicht** im Archivierungspfad, sondern nachgelagert über
+   `ameise:resolve-archive-ids` (Regel 2 in Abschnitt 8a). Schlägt sie fehl, bleibt die
+   Archivierung davon unberührt. Derselbe Mechanismus deckt den Altbestand ab.
 3. **Optional zuschaltbar:** Schreibpfad über `POST /api/customers/{id}/archive-entries`. Die
    Antwort liefert die ID direkt, Anhänge hängen als `files[]` am selben Eintrag statt eigene
    Einträge zu erzeugen, Betreff/Text stehen im JSON statt in Headern (kein 128-Zeichen-Header-
@@ -209,7 +235,7 @@ muss Archivieren, Nacharchivieren per Cron und Weiterleiten exakt wie heute funk
 | Phase | Inhalt | Ergebnis |
 | --- | --- | --- |
 | 0 ✅ | `ArchiveApiClient`, Config (`ameise_archive_api_url`) inkl. Settings-Feld, Prüf-Command `ameise:archive-api-check` | Archive-API ist ansprechbar und verifizierbar |
-| 0b | ID aus der Antwort des Legacy-POST übernehmen | neue Archivierungen sind identifizierbar |
+| 0b | ID aus der Antwort des Legacy-POST übernehmen (umgesetzt) und Auflösung der UUID über das Zeitfenster in `ameise:resolve-archive-ids` | neue Archivierungen sind identifizierbar |
 | 1 | Tabelle `crm_archive_entries`, Migration, `ameise:backfill-archive-ids` | Altbestand ist zugeordnet |
 | 2 | Sidebar-Liste, Bearbeiten-Modal, Bulk-Zuordnung | manuelle Korrektur läuft |
 | 3 | `requiresReview`, Prüfliste, `ameise:sync-archive-entries` | Korrekturschleife steht |
@@ -217,6 +243,10 @@ muss Archivieren, Nacharchivieren per Cron und Weiterleiten exakt wie heute funk
 
 ## 10. Offene Punkte
 
+* **Offen bei Dionera:** Warum antworten `/api/archive-entries/id-mapping` und
+  `/api/archive-entries/{id}` mit 403, obwohl `ameise.customer-archives` vergeben ist?
+  Gibt es einen zusätzlichen Scope für die kundenunabhängigen Routen? Eine Freischaltung
+  würde die Zuordnung über das Zeitfenster überflüssig machen.
 * ~~Welcher Scope, welcher Host?~~ **Geklärt am 30.08.2026:** Live-Host ist
   `https://customer-archives.ameiseapis.com`, der Scope heißt `ameise.customer-archives`.
   Mit `ameise/mitarbeiterwebservice ameise.customer-archives offline` antworten
@@ -225,8 +255,8 @@ muss Archivieren, Nacharchivieren per Cron und Weiterleiten exakt wie heute funk
   Standard ins Modul übernommen: Mandanten, deren Client ihn nicht führt, bekämen sonst
   beim Verbinden ein `invalid_scope` und stünden ohne Archivierung da (siehe 8a).
   Der Host der Testumgebung ist weiterhin ungeprüft.
-* Liefert der Legacy-POST `archiveintraege` eine ID (Location-Header oder Body)? Davon hängt
-  ab, ob Phase 0 ohne Backfill auskommt.
+* ~~Liefert der Legacy-POST eine ID?~~ **Geklärt:** ja, im JSON-Body (Status 200, kein
+  `Location`-Header). Sie ist aber nicht die UUID der Archive-API.
 * OAuth-Scope und Produktiv-Host der Archive-API — die YAML nennt nur
   `customer-archives-ameiseapis.local.dionera.dev`.
 * Mandantenkontext: die neue API kennt kein `/{ma}/`-Segment. Wird der Mitarbeiter-/
