@@ -102,12 +102,13 @@ Drei Wege, in dieser Reihenfolge:
    `ameise:resolve-archive-ids` (Regel 2 in Abschnitt 8a). Schlägt sie fehl, bleibt die
    Archivierung davon unberührt. Derselbe Mechanismus deckt den Altbestand ab.
 
-   Zum Format: `dateMin`/`dateMax` verlangen `Y-m-d H:i:s` ohne Zeitzone — ISO 8601 mit
-   Offset quittiert die API mit 422 (`This value is not a valid datetime`). Da damit die
-   Serverzeitzone nicht sicher bekannt ist, ist das abgefragte Fenster grob (±3 Stunden,
-   bei Bedarf über mehrere Seiten) und dient nur der Vorauswahl. Genau verglichen wird
-   lokal auf den Zeitstempeln der Antwort, die einen Offset tragen und damit eindeutig
-   sind.
+   Zum Format: `dateMin`/`dateMax` akzeptieren **ausschließlich `Y-m-d`** — jede Variante
+   mit Uhrzeit quittiert die API mit 422 (`This value is not a valid datetime`), von
+   ISO 8601 mit Offset über `Y-m-d H:i:s` bis zum Unix-Zeitstempel. Es sind also Tages-,
+   keine Zeitfilter. Das ist für den Zweck unerheblich: Der Filter dient nur der
+   Vorauswahl, genau verglichen wird lokal auf den Zeitstempeln der Antwort, die einen
+   Offset tragen und damit eindeutig sind. Bei vielen Einträgen eines Tages wird über
+   mehrere Seiten geblättert.
 3. **Optional zuschaltbar:** Schreibpfad über `POST /api/customers/{id}/archive-entries`. Die
    Antwort liefert die ID direkt, Anhänge hängen als `files[]` am selben Eintrag statt eigene
    Einträge zu erzeugen, Betreff/Text stehen im JSON statt in Headern (kein 128-Zeichen-Header-

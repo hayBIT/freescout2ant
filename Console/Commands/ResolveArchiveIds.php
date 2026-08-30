@@ -25,6 +25,7 @@ class ResolveArchiveIds extends Command
         {--user= : Nur Einträge, die dieser Benutzer archiviert hat}
         {--retry-unmapped : Auch bereits als nicht zuordenbar markierte Einträge erneut versuchen}
         {--list : Nur zeigen, welche Konversationen offene Einträge haben — ohne API-Aufruf}
+        {--debug : Bei erfolgloser Zuordnung zeigen, was im Zeitfenster tatsächlich lag}
         {--out= : Die vollständige Ausgabe zusätzlich in diese Datei schreiben}';
 
     protected $description = 'Ermittelt die UUIDs archivierter Einträge über die Archive-API';
@@ -96,6 +97,9 @@ class ResolveArchiveIds extends Command
                 if ($entry->last_error) {
                     $this->line('            ' . $entry->last_error);
                 }
+                if ($this->option('debug')) {
+                    $this->showWindow($resolver, $entry);
+                }
             }
         }
 
@@ -110,6 +114,32 @@ class ResolveArchiveIds extends Command
         }
 
         return 0;
+    }
+
+    /**
+     * Stellt das Gesuchte dem gegenüber, was die Ameise im Fenster führt.
+     */
+    private function showWindow(ArchiveEntryResolver $resolver, CrmArchiveEntry $entry)
+    {
+        $this->line('            gesucht:  ' . $entry->entry_date
+            . ' · ' . \Modules\AmeiseModule\Services\ArchiveEntryRecorder::apiType($entry->entry_type)
+            . ' · ' . $entry->subject);
+
+        $items = $resolver->windowItems($entry);
+        if (empty($items)) {
+            $this->line('            gefunden: nichts im Fenster');
+            return;
+        }
+
+        $this->line('            gefunden: ' . count($items) . ' Einträge im Fenster');
+        foreach (array_slice($items, 0, 10) as $item) {
+            $this->line('              ' . ($item['date'] ?? '—')
+                . ' · ' . ($item['type'] ?? '—')
+                . ' · ' . mb_substr((string) ($item['subject'] ?? ''), 0, 60));
+        }
+        if (count($items) > 10) {
+            $this->line('              … und ' . (count($items) - 10) . ' weitere');
+        }
     }
 
     /**

@@ -37,12 +37,14 @@ class ArchiveEntryResolver
      * das erste, das durchgeht.
      */
     private const API_DATE_FORMATS = [
+        // Auf der Live-Umgebung geprüft: die API nimmt ausschließlich das reine
+        // Datum. Alle Varianten mit Uhrzeit enden in einem 422. dateMin/dateMax
+        // sind also Tages-, keine Zeitfilter.
+        'Y-m-d',
         'Y-m-d\TH:i:s',
         'Y-m-d H:i:s',
         'Y-m-d\TH:i:sP',
         'Y-m-d\TH:i:s\Z',
-        'Y-m-d\TH:i:s.uP',
-        'Y-m-d',
         'U',
     ];
 
@@ -142,6 +144,19 @@ class ArchiveEntryResolver
         }
 
         return $this->listCache[$key] = null;
+    }
+
+    /**
+     * Die Einträge, die im Fenster tatsächlich gefunden wurden — für die
+     * Fehlersuche, wenn eine Zuordnung nicht aufgeht.
+     */
+    public function windowItems(CrmArchiveEntry $entry)
+    {
+        if (empty($entry->entry_date) || empty($entry->customer_id)) {
+            return [];
+        }
+
+        return $this->entriesAround($entry->customer_id, $entry->entry_date) ?: [];
     }
 
     /**
