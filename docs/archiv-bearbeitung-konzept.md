@@ -93,6 +93,10 @@ Drei Wege, in dieser Reihenfolge:
    | Nachricht | Betreff der Konversation | `thread.created_at` | `email` / `telefon` |
    | Anhang | Dateiname | `thread.created_at` | `dokument` |
 
+   **Auf der Live-Umgebung nachgewiesen (31.08.2026):** Konversation 221603 →
+   `4cb56990-a600-4cbd-b9b5-45b14aee23f1`. Zwei Einträge lagen im Fenster, der richtige
+   wurde über Betreff, Typ und Zeitpunkt eindeutig getroffen.
+
    Bereits zugeordnete UUIDs werden ausgeschlossen, sodass jeder Eintrag nur einmal
    beansprucht wird. Bleibt eine Zuordnung mehrdeutig (zwei Anhänge gleichen Namens am
    selben Thread), gilt `sync_state = unmapped`: der Eintrag ist in der GUI sichtbar, aber
@@ -251,8 +255,8 @@ muss Archivieren, Nacharchivieren per Cron und Weiterleiten exakt wie heute funk
 | Phase | Inhalt | Ergebnis |
 | --- | --- | --- |
 | 0 ✅ | `ArchiveApiClient`, Config (`ameise_archive_api_url`) inkl. Settings-Feld, Prüf-Command `ameise:archive-api-check` | Archive-API ist ansprechbar und verifizierbar |
-| 0b | ID aus der Antwort des Legacy-POST übernehmen (umgesetzt) und Auflösung der UUID über das Zeitfenster in `ameise:resolve-archive-ids` | neue Archivierungen sind identifizierbar |
-| 1 | Tabelle `crm_archive_entries`, Migration, `ameise:backfill-archive-ids` | Altbestand ist zugeordnet |
+| 0b ✅ | ID aus der Antwort des Legacy-POST übernehmen und Auflösung der UUID über den Tagesfilter in `ameise:resolve-archive-ids` | neue Archivierungen sind identifizierbar |
+| 1 ✅ | Tabelle `crm_archive_entries`, Migration, `ameise:seed-archive-entries` | Altbestand ist adressierbar |
 | 2 | Sidebar-Liste, Bearbeiten-Modal, Bulk-Zuordnung | manuelle Korrektur läuft |
 | 3 | `requiresReview`, Prüfliste, `ameise:sync-archive-entries` | Korrekturschleife steht |
 | 4 | Schreibpfad über die neue API als **zuschaltbare Option** (`files[]` am Eintrag) mit Rückfall auf die Mitarbeiter-API, danach Automatik je Mailbox | automatische Archivierung für Mandanten mit Scope |
@@ -272,6 +276,9 @@ muss Archivieren, Nacharchivieren per Cron und Weiterleiten exakt wie heute funk
   Standard ins Modul übernommen: Mandanten, deren Client ihn nicht führt, bekämen sonst
   beim Verbinden ein `invalid_scope` und stünden ohne Archivierung da (siehe 8a).
   Der Host der Testumgebung ist weiterhin ungeprüft.
+* **Zeitzonen-Falle:** `entry_date` gehört in die Zeitzone der Anwendung, nicht in UTC —
+  Laravel liest Datumsfelder in `config('app.timezone')` zurück. Ein in UTC abgelegter
+  Wert kommt um den Offset verschoben an, und die Zuordnung findet nichts.
 * ~~Liefert der Legacy-POST eine ID?~~ **Geklärt:** ja, im JSON-Body (Status 200, kein
   `Location`-Header). Sie ist aber nicht die UUID der Archive-API.
 * OAuth-Scope und Produktiv-Host der Archive-API — die YAML nennt nur
