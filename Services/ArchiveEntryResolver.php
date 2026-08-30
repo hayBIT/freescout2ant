@@ -50,7 +50,15 @@ class ArchiveEntryResolver
 
         $items = $this->entriesAround($entry->customer_id, $entry->entry_date);
         if ($items === null) {
-            return $this->mark($entry, CrmArchiveEntry::STATE_PENDING, $this->client->getLastError());
+            // Die Antwort der API mitschreiben — bei einem 422 nennt sie das
+            // beanstandete Feld, und daran hängt die Fehlersuche.
+            $message = $this->client->getLastError();
+            $body = trim((string) $this->client->getLastResponseBody());
+            if ($body !== '') {
+                $message .= ' — ' . mb_substr($body, 0, 300);
+            }
+
+            return $this->mark($entry, CrmArchiveEntry::STATE_PENDING, $message);
         }
 
         $candidates = $this->candidatesFor($entry, $items);

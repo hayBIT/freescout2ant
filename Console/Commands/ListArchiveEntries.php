@@ -26,6 +26,7 @@ class ListArchiveEntries extends Command
         {--entry= : Statt der Liste einen einzelnen Eintrag über GET /archive-entries/{id} abrufen}
         {--limit=20 : Anzahl der Einträge}
         {--raw : Den ersten Eintrag zusätzlich als JSON ausgeben}
+        {--probe-dates= : Zeitpunkt, mit dem verschiedene Datumsformate für dateMin/dateMax geprüft werden}
         {--out= : Die vollständige Ausgabe zusätzlich in diese Datei schreiben}';
 
     protected $description = 'Listet Archiveinträge eines Kunden aus der Archive-API';
@@ -65,6 +66,11 @@ class ListArchiveEntries extends Command
         $entryId = trim((string) $this->option('entry'));
         if ($entryId !== '') {
             return $this->showEntry($client, $customerId, $entryId);
+        }
+
+        $probe = trim((string) $this->option('probe-dates'));
+        if ($probe !== '') {
+            return $this->probeDateFormats($client, $customerId, $probe);
         }
 
         $filters = ['pageSize' => (int) $this->option('limit')];
@@ -124,6 +130,68 @@ class ListArchiveEntries extends Command
             $this->line('Erster Eintrag vollständig:');
             $this->line(json_encode($items[0], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
         }
+
+        return 0;
+    }
+
+    /**
+     * Die OpenAPI-Datei beschreibt dateMin/dateMax nur als "string". Welches
+     * Format die API tatsächlich akzeptiert, klärt dieser Durchlauf.
+     */
+    private function probeDateFormats(ArchiveApiClient $client, $customerId, $reference)
+    {
+        try {
+            $date = \Carbon\Carbon::parse($reference);
+        } catch (\Exception $e) {
+            $this->error('Zeitpunkt nicht lesbar: ' . $reference);
+            return 1;
+        }
+
+        $from = $date->copy()->subMinutes(2);
+        $to = $date->copy()->addMinutes(2);
+
+        $formats = [
+            'ISO 8601 mit Zeitzone' => [$from->toIso8601String(), $to->toIso8601String()],
+            'ISO 8601 in UTC (Z)' => [$from->copy()->setTimezone('UTC')->format('Y-m-d\TH:i:s\Z'), $to->copy()->setTimezone('UTC')->format('Y-m-d\TH:i:s\Z')],
+            'ohne Zeitzone (T)' => [$from->format('Y-m-d\TH:i:s'), $to->format('Y-m-d\TH:i:s')],
+            'mit Leerzeichen' => [$from->format('Y-m-d H:i:s'), $to->format('Y-m-d H:i:s')],
+            'nur Datum' => [$from->format('Y-m-d'), $to->format('Y-m-d')],
+            'Unix-Zeitstempel' => [(string) $from->getTimestamp(), (string) $to->getTimestamp()],
+        ];
+
+        $this->line('Zeitpunkt: ' . $date->toIso8601String());
+        $this->line('');
+
+        $worked = [];
+        foreach ($formats as $label => $range) {
+            $result = $client->listArchiveEntries($customerId, [
+                'pageSize' => 5,
+                'dateMin' => $range[0],
+                'dateMax' => $range[1],
+            ]);
+
+            $status = $client->getLastStatusCode();
+            if ($result !== null) {
+                $count = $result['numberOfResults'] ?? count($result['items'] ?? []);
+                $this->line('  <info>OK</info>    ' . str_pad($label, 24) . $range[0] . '  (' . $status . ', ' . $count . ' Treffer)');
+                $worked[] = $label;
+                continue;
+            }
+
+            $this->line('  <error>FEHL</error>  ' . str_pad($label, 24) . $range[0] . '  (' . $status . ')');
+            $body = trim((string) $client->getLastResponseBody());
+            if ($body !== '') {
+                $this->line('        ' . mb_substr($body, 0, 300));
+            }
+        }
+
+        $this->line('');
+        if (empty($worked)) {
+            $this->error('Kein Format wurde akzeptiert.');
+            return 1;
+        }
+
+        $this->info('Akzeptiert: ' . implode(', ', $worked));
 
         return 0;
     }
