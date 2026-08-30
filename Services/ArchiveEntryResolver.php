@@ -28,8 +28,26 @@ class ArchiveEntryResolver
      */
     private const WINDOW_SECONDS = 10800;
 
-    /** Format, das die API akzeptiert (Symfony-Standard für DateTime). */
-    private const API_DATE_FORMAT = 'Y-m-d H:i:s';
+    /**
+     * Kandidaten für das Datumsformat der Liste.
+     *
+     * Die OpenAPI-Datei beschreibt dateMin/dateMax nur als "string", und sowohl
+     * ISO 8601 mit Offset als auch "Y-m-d H:i:s" werden mit 422 abgelehnt.
+     * Deshalb probiert der Resolver die gängigen Formate durch und merkt sich
+     * das erste, das durchgeht.
+     */
+    private const API_DATE_FORMATS = [
+        'Y-m-d\TH:i:s',
+        'Y-m-d H:i:s',
+        'Y-m-d\TH:i:sP',
+        'Y-m-d\TH:i:s\Z',
+        'Y-m-d\TH:i:s.uP',
+        'Y-m-d',
+        'U',
+    ];
+
+    /** Das Format, das sich in diesem Prozess bewährt hat. */
+    private static $workingDateFormat = null;
 
     /** Sicherheitsgrenze beim Blättern durch ein Zeitfenster. */
     private const MAX_PAGES = 5;
@@ -109,17 +127,62 @@ class ArchiveEntryResolver
             return $this->listCache[$key];
         }
 
+        foreach ($this->dateFormats() as $format) {
+            $items = $this->fetchWindow($customerId, $from, $to, $format);
+
+            if ($items !== null) {
+                self::$workingDateFormat = $format;
+                return $this->listCache[$key] = $items;
+            }
+
+            // Nur ein Formatfehler rechtfertigt den nächsten Versuch.
+            if ($this->client->getLastStatusCode() !== 422) {
+                return $this->listCache[$key] = null;
+            }
+        }
+
+        return $this->listCache[$key] = null;
+    }
+
+    /**
+     * Welches Datumsformat die API in diesem Lauf akzeptiert hat.
+     */
+    public static function workingDateFormat()
+    {
+        return self::$workingDateFormat;
+    }
+
+    /**
+     * Ein bewährtes Format zuerst, danach die übrigen Kandidaten.
+     */
+    private function dateFormats(): array
+    {
+        if (self::$workingDateFormat === null) {
+            return self::API_DATE_FORMATS;
+        }
+
+        return array_merge(
+            [self::$workingDateFormat],
+            array_diff(self::API_DATE_FORMATS, [self::$workingDateFormat])
+        );
+    }
+
+    /**
+     * @return array|null null, wenn die API die Anfrage abgelehnt hat.
+     */
+    private function fetchWindow($customerId, $from, $to, $format)
+    {
         $items = [];
         for ($page = 1; $page <= self::MAX_PAGES; $page++) {
             $list = $this->client->listArchiveEntries($customerId, [
                 'page' => $page,
                 'pageSize' => 200,
-                'dateMin' => $from->format(self::API_DATE_FORMAT),
-                'dateMax' => $to->format(self::API_DATE_FORMAT),
+                'dateMin' => $from->format($format),
+                'dateMax' => $to->format($format),
             ]);
 
             if ($list === null) {
-                return $this->listCache[$key] = null;
+                return null;
             }
 
             $items = array_merge($items, $list['items'] ?? []);
@@ -129,7 +192,7 @@ class ArchiveEntryResolver
             }
         }
 
-        return $this->listCache[$key] = $items;
+        return $items;
     }
 
     /**

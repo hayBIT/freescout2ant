@@ -104,6 +104,11 @@ class ResolveArchiveIds extends Command
             $this->line('  ' . str_pad($state, 16) . $count);
         }
 
+        if ($format = ArchiveEntryResolver::workingDateFormat()) {
+            $this->line('');
+            $this->line('Akzeptiertes Datumsformat der API: ' . $format);
+        }
+
         return 0;
     }
 
