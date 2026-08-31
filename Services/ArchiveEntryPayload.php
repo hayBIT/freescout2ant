@@ -40,7 +40,46 @@ class ArchiveEntryPayload
             }
         }
 
-        return array_merge($payload, $changes);
+        $payload = array_merge($payload, $changes);
+
+        // Die API verlangt Vertrags-IDs als Ganzzahlen (ContractDto.id ist
+        // integer); die Oberfläche liefert Strings. Sparten-IDs bleiben Strings.
+        $payload['contracts'] = self::integerIds($payload['contracts'] ?? []);
+        $payload['contractLines'] = self::stringIds($payload['contractLines'] ?? []);
+        $payload['tags'] = self::stringIds($payload['tags'] ?? []);
+
+        return $payload;
+    }
+
+    /**
+     * @return int[]
+     */
+    private static function integerIds($items): array
+    {
+        $ids = [];
+        foreach (self::ids($items) as $id) {
+            if (is_numeric($id)) {
+                $ids[] = (int) $id;
+            }
+        }
+
+        return array_values(array_unique($ids, SORT_REGULAR));
+    }
+
+    /**
+     * @return string[]
+     */
+    private static function stringIds($items): array
+    {
+        $ids = [];
+        foreach (self::ids($items) as $id) {
+            $id = (string) $id;
+            if ($id !== '') {
+                $ids[] = $id;
+            }
+        }
+
+        return array_values(array_unique($ids));
     }
 
     /**
