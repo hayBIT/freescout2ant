@@ -257,7 +257,7 @@ muss Archivieren, Nacharchivieren per Cron und Weiterleiten exakt wie heute funk
 | 0 ✅ | `ArchiveApiClient`, Config (`ameise_archive_api_url`) inkl. Settings-Feld, Prüf-Command `ameise:archive-api-check` | Archive-API ist ansprechbar und verifizierbar |
 | 0b ✅ | ID aus der Antwort des Legacy-POST übernehmen und Auflösung der UUID über den Tagesfilter in `ameise:resolve-archive-ids` | neue Archivierungen sind identifizierbar |
 | 1 ✅ | Tabelle `crm_archive_entries`, Migration, `ameise:seed-archive-entries` | Altbestand ist adressierbar |
-| 2 | Sidebar-Liste, Bearbeiten-Modal, Bulk-Zuordnung | manuelle Korrektur läuft |
+| 2 ✅ | Seitenleisten-Liste, Bearbeiten-Dialog, Bulk-Zuordnung, Auflösung bei Bedarf | manuelle Korrektur läuft |
 | 3 | `requiresReview`, Prüfliste, `ameise:sync-archive-entries` | Korrekturschleife steht |
 | 4 | Schreibpfad über die neue API als **zuschaltbare Option** (`files[]` am Eintrag) mit Rückfall auf die Mitarbeiter-API, danach Automatik je Mailbox | automatische Archivierung für Mandanten mit Scope |
 
