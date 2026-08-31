@@ -148,8 +148,7 @@ In der Seitenleiste einer Konversation stehen unter den Zuordnungen die einzelne
 Archiveinträge der Ameise — je Nachricht und je Anhang einer, mit Status und Datum. Über
 das Stift-Symbol öffnet sich der Bearbeiten-Dialog mit drei Reitern:
 
-* **Eintrag** — Betreff, Typ, Datum, Text, Sichtbarkeit für Kunden, Prüfmarke und
-  Dateiliste. Der Typ ist gesperrt, solange Dateien am Eintrag hängen; die API lehnt
+* **Eintrag** — Betreff, Typ, Datum, Text, Sichtbarkeit für Kunden und Dateiliste. Der Typ ist gesperrt, solange Dateien am Eintrag hängen; die API lehnt
   eine Änderung dann ab.
 * **Zuordnung** — Verträge und Sparten (aus der Mitarbeiter-API) sowie Tags mit
   Vorschlägen. Ein Häkchen überträgt die Zuordnung auf alle Einträge der Konversation.

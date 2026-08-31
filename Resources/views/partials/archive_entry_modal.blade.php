@@ -67,9 +67,6 @@
                         <div class="checkbox">
                             <label><input type="checkbox" id="ameise-entry-public"> {{ __('Für Kunden sichtbar') }}</label>
                         </div>
-                        <div class="checkbox">
-                            <label><input type="checkbox" id="ameise-entry-review"> {{ __('Prüfung erforderlich') }}</label>
-                        </div>
                     </div>
 
                     <div class="tab-pane" id="ameise-tab-relations">

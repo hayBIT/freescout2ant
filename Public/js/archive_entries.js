@@ -111,7 +111,6 @@ $(document).ready(function () {
         $('#ameise-entry-text').val(entry.text || '');
         $('#ameise-entry-date').val(entry.date || '');
         $('#ameise-entry-public').prop('checked', entry.is_public);
-        $('#ameise-entry-review').prop('checked', entry.requires_review);
         $('#ameise-entry-customer').text(entry.customer_id);
 
         $('#ameise-entry-type').val(entry.type || 'email')
@@ -155,7 +154,6 @@ $(document).ready(function () {
             archive_type: $('#ameise-entry-type').prop('disabled') ? '' : $('#ameise-entry-type').val(),
             date: $('#ameise-entry-date').val(),
             is_public: $('#ameise-entry-public').is(':checked') ? 1 : 0,
-            requires_review: $('#ameise-entry-review').is(':checked') ? 1 : 0,
             // Als JSON, weil jQuery leere Arrays weglassen würde — das Entfernen
             // der letzten Zuordnung käme sonst nie beim Server an.
             tags: JSON.stringify(selectedValues($('#ameise-entry-tags'))),
