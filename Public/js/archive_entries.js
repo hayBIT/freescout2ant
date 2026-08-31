@@ -156,9 +156,11 @@ $(document).ready(function () {
             date: $('#ameise-entry-date').val(),
             is_public: $('#ameise-entry-public').is(':checked') ? 1 : 0,
             requires_review: $('#ameise-entry-review').is(':checked') ? 1 : 0,
-            tags: selectedValues($('#ameise-entry-tags')),
-            contracts: selectedValues($('#ameise-entry-contracts')),
-            contract_lines: selectedValues($('#ameise-entry-lines')),
+            // Als JSON, weil jQuery leere Arrays weglassen würde — das Entfernen
+            // der letzten Zuordnung käme sonst nie beim Server an.
+            tags: JSON.stringify(selectedValues($('#ameise-entry-tags'))),
+            contracts: JSON.stringify(selectedValues($('#ameise-entry-contracts'))),
+            contract_lines: JSON.stringify(selectedValues($('#ameise-entry-lines'))),
             apply_to_conversation: $('#ameise-entry-apply-all').is(':checked') ? 1 : 0
         })
             .done(function (response) {
@@ -306,8 +308,8 @@ $(document).ready(function () {
         post({
             action: 'bulk_relations',
             conversation_id: modal.data('conversation'),
-            contracts: selectedValues($('#ameise-bulk-contracts')),
-            contract_lines: selectedValues($('#ameise-bulk-lines')),
+            contracts: JSON.stringify(selectedValues($('#ameise-bulk-contracts'))),
+            contract_lines: JSON.stringify(selectedValues($('#ameise-bulk-lines'))),
             mode: $('input[name="ameise-bulk-mode"]:checked').val()
         })
             .done(function (response) {

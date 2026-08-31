@@ -92,7 +92,7 @@ class ArchiveEntryController extends Controller
 
         $changes = $this->changesFrom($request);
 
-        if ($request->boolean('apply_to_conversation')
+        if ($this->flag($request, 'apply_to_conversation')
             && array_key_exists('contracts', $changes)
             && array_key_exists('contractLines', $changes)) {
             // Der geöffnete Eintrag bekommt seine eigenen Änderungen …
@@ -227,16 +227,16 @@ class ArchiveEntryController extends Controller
             }
         }
         if ($request->has('is_public')) {
-            $changes['isPublic'] = $request->boolean('is_public');
+            $changes['isPublic'] = $this->flag($request, 'is_public');
         }
         if ($request->has('requires_review')) {
-            $changes['requiresReview'] = $request->boolean('requires_review');
+            $changes['requiresReview'] = $this->flag($request, 'requires_review');
         }
         if ($request->has('is_deleted')) {
-            $changes['isDeleted'] = $request->boolean('is_deleted');
+            $changes['isDeleted'] = $this->flag($request, 'is_deleted');
         }
         if ($request->has('tags')) {
-            $changes['tags'] = array_values(array_filter((array) $request->input('tags')));
+            $changes['tags'] = $this->listFrom($request->input('tags'));
         }
         if ($request->has('contracts')) {
             $changes['contracts'] = $this->idsFrom($request->input('contracts'));
@@ -246,6 +246,15 @@ class ArchiveEntryController extends Controller
         }
 
         return $changes;
+    }
+
+    /**
+     * Request::boolean() gibt es erst ab Laravel 6 — FreeScout läuft auf einer
+     * älteren Fassung.
+     */
+    private function flag(Request $request, $key): bool
+    {
+        return filter_var($request->input($key), FILTER_VALIDATE_BOOLEAN);
     }
 
     /**
@@ -275,10 +284,27 @@ class ArchiveEntryController extends Controller
         }
     }
 
+    /**
+     * Die Oberfläche sendet Listen als JSON, damit auch eine geleerte Auswahl
+     * ankommt — als Formularfeld würde sie schlicht fehlen.
+     */
+    private function listFrom($value): array
+    {
+        if (is_string($value)) {
+            $decoded = json_decode($value, true);
+            $value = is_array($decoded) ? $decoded : array_filter([$value]);
+        }
+
+        return array_values(array_filter((array) $value, function ($item) {
+            return $item !== null && $item !== '';
+        }));
+    }
+
     private function idsFrom($value): array
     {
         if (is_string($value)) {
-            $value = json_decode($value, true) ?: [];
+            $decoded = json_decode($value, true);
+            $value = is_array($decoded) ? $decoded : array_filter([$value]);
         }
 
         $ids = [];
