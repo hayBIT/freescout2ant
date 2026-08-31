@@ -4,15 +4,20 @@ namespace Modules\AmeiseModule\Services;
 
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\RequestException as Exception;
+use Modules\AmeiseModule\Services\Concerns\SanitizesLogs;
 
 class CrmApiClient
 {
+    use SanitizesLogs;
+
     private const MAX_SUBJECT_LENGTH = 128;
 
     private $base_url;
     private $tokenService;
     private $ameiseLogStatus;
     private $client;
+    private $lastArchiveEntryId;
+    private $lastArchiveResponseMeta = [];
 
     public function __construct(TokenService $tokenService)
     {
@@ -186,6 +191,8 @@ class CrmApiClient
 
     public function archiveConversation($data)
     {
+        $this->lastArchiveEntryId = null;
+        $this->lastArchiveResponseMeta = [];
         try {
             $tokenError = $this->checkTokenError();
             if ($tokenError) {
@@ -212,6 +219,7 @@ class CrmApiClient
             ]);
             $this->ameiseLogStatus && \Helper::log('conversation_archive', 'Response status: ' . $response->getStatusCode());
             if ($response->getStatusCode() >= 200 && $response->getStatusCode() < 300) {
+                $this->rememberArchiveResponse($response);
                 return true;
             } elseif ($response->getStatusCode() === 401) {
                 $this->tokenService->disconnectAmeise();
@@ -235,6 +243,90 @@ class CrmApiClient
     }
 
 
+    /**
+     * ID des zuletzt angelegten Archiveintrags, sofern die Ameise eine geliefert hat.
+     * Grundlage dafür, den Eintrag später über die Archive-API zu bearbeiten.
+     */
+    public function getLastArchiveEntryId()
+    {
+        return $this->lastArchiveEntryId;
+    }
+
+    /**
+     * Status, Header und Body-Anfang der letzten Archivierung — für die Diagnose,
+     * in welcher Form die Ameise die ID zurückgibt.
+     */
+    public function getLastArchiveResponseMeta(): array
+    {
+        return $this->lastArchiveResponseMeta;
+    }
+
+    private function rememberArchiveResponse($response)
+    {
+        $headers = [];
+        foreach ($response->getHeaders() as $name => $values) {
+            $headers[$name] = implode(', ', $values);
+        }
+        $body = (string) $response->getBody();
+
+        $this->lastArchiveResponseMeta = [
+            'status' => $response->getStatusCode(),
+            'headers' => $this->sanitizeLogData($headers),
+            'body' => $this->sanitizeLogText(mb_substr($body, 0, 2000)),
+        ];
+        $this->lastArchiveEntryId = $this->extractArchiveEntryId($headers, $body);
+
+        if ($this->ameiseLogStatus) {
+            \Helper::log('conversation_archive', 'Response headers: ' . json_encode($this->lastArchiveResponseMeta['headers']));
+            \Helper::log('conversation_archive', 'Response body: ' . $this->lastArchiveResponseMeta['body']);
+            \Helper::log('conversation_archive', 'Erkannte Archiveintrags-ID: ' . ($this->lastArchiveEntryId ?? '—'));
+        }
+    }
+
+    /**
+     * Die Ameise dokumentiert nicht, wie sie die ID der Archivierung zurückgibt.
+     * Deshalb der Reihe nach: Location-Header, ID-artige Header, JSON-Body, blanker Body.
+     */
+    private function extractArchiveEntryId(array $headers, string $body)
+    {
+        foreach ($headers as $name => $value) {
+            if (strcasecmp($name, 'Location') === 0) {
+                $path = parse_url(trim($value), PHP_URL_PATH) ?: trim($value);
+                $segment = basename(rtrim($path, '/'));
+                // Zeigt der Header nur auf die Sammlung, steht dort kein Eintrag.
+                if (strcasecmp($segment, 'archiveintraege') !== 0 && $this->looksLikeId($segment)) {
+                    return $segment;
+                }
+            }
+        }
+
+        foreach ($headers as $name => $value) {
+            if (stripos($name, 'id') !== false && $this->looksLikeId(trim($value))) {
+                return trim($value);
+            }
+        }
+
+        $decoded = json_decode($body, true);
+        if (is_array($decoded)) {
+            foreach (['id', 'Id', 'archiveEntryId', 'archiveApiId', 'legacyId', 'ArchiveintragId'] as $key) {
+                if (isset($decoded[$key]) && $this->looksLikeId((string) $decoded[$key])) {
+                    return (string) $decoded[$key];
+                }
+            }
+        }
+
+        $trimmed = trim($body);
+        return $this->looksLikeId($trimmed) ? $trimmed : null;
+    }
+
+    private function looksLikeId($value): bool
+    {
+        return is_string($value)
+            && $value !== ''
+            && strlen($value) <= 64
+            && (bool) preg_match('/^[A-Za-z0-9][A-Za-z0-9\-_]*$/', $value);
+    }
+
     private function limitSubjectHeader(string $subject): string
     {
         if (mb_strlen($subject) <= self::MAX_SUBJECT_LENGTH) {
@@ -242,53 +334,5 @@ class CrmApiClient
         }
 
         return mb_substr($subject, 0, self::MAX_SUBJECT_LENGTH);
-    }
-
-    private function sanitizeLogData($data)
-    {
-        if (is_array($data)) {
-            $sanitized = [];
-            foreach ($data as $key => $value) {
-                if (is_string($key) && $this->isSensitiveKey($key)) {
-                    $sanitized[$key] = $this->valueFingerprint($value);
-                    continue;
-                }
-                $sanitized[$key] = $this->sanitizeLogData($value);
-            }
-            return $sanitized;
-        }
-
-        if (is_object($data)) {
-            return $this->sanitizeLogData((array) $data);
-        }
-
-        if (is_string($data)) {
-            return $this->sanitizeLogText($data);
-        }
-
-        return $data;
-    }
-
-    private function sanitizeLogText(string $text): string
-    {
-        $pattern = '/(Bearer\s+)([A-Za-z0-9\-\._~\+\/]+=*)/i';
-        return preg_replace_callback($pattern, function (array $matches) {
-            return $matches[1] . $this->valueFingerprint($matches[2]);
-        }, $text) ?? $text;
-    }
-
-    private function isSensitiveKey(string $key): bool
-    {
-        $normalized = strtolower($key);
-        return in_array($normalized, ['access_token', 'refresh_token', 'id_token', 'authorization', 'token'], true);
-    }
-
-    private function valueFingerprint($value): string
-    {
-        if (!is_string($value) || $value === '') {
-            return '[redacted]';
-        }
-
-        return '[fingerprint:sha256:' . substr(hash('sha256', $value), 0, 12) . ']';
     }
 }

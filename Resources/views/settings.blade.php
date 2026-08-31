@@ -12,6 +12,24 @@
         </div>
     </div>
     <div class="form-group">
+        <label for="" class="col-sm-2 control-label">{{ __('Archive API URL') }}</label>
+
+        <div class="col-sm-6">
+            <input class="form-control" name="settings[ameise_archive_api_url]" type="text" value="{{ old('settings[ameise_archive_api_url]', $settings['ameise_archive_api_url'])}}" placeholder="https://customer-archives-ameiseapis.inte.dionera.dev">
+            <p class="help-block">{{ __('Host der Archive-API zum Bearbeiten von Archiveinträgen. Im Test-Modus kann das Feld leer bleiben, im Live-Modus muss es gesetzt sein.') }}</p>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label for="" class="col-sm-2 control-label">{{ __('OAuth Scope') }}</label>
+
+        <div class="col-sm-6">
+            <input class="form-control" name="settings[ameise_scope]" type="text" value="{{ old('settings[ameise_scope]', $settings['ameise_scope'])}}">
+            <p class="help-block">{{ __('Beim Verbinden angefragte Berechtigungen, durch Leerzeichen getrennt. Der Scope wird im Token festgeschrieben: eine Änderung wirkt erst, nachdem die Verbindung getrennt und neu hergestellt wurde.') }}</p>
+        </div>
+    </div>
+
+    <div class="form-group">
       <label for="" class="col-sm-2 control-label">{{ __('Client ID') }}</label>
 
       <div class="col-sm-6">

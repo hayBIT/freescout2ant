@@ -10,6 +10,12 @@ use Config;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\Event;
 use Modules\AmeiseModule\Console\Commands\ArchiveThreads;
+use Modules\AmeiseModule\Console\Commands\CheckArchiveApi;
+use Modules\AmeiseModule\Console\Commands\DisconnectAmeise;
+use Modules\AmeiseModule\Console\Commands\ListArchiveEntries;
+use Modules\AmeiseModule\Console\Commands\ResolveArchiveIds;
+use Modules\AmeiseModule\Console\Commands\SeedArchiveEntries;
+use Modules\AmeiseModule\Console\Commands\ProbeArchiveId;
 defined('AMEISE_MODULE') || define('AMEISE_MODULE', 'ameisemodule');
 
 class AmeiseModuleServiceProvider extends ServiceProvider
@@ -33,6 +39,12 @@ class AmeiseModuleServiceProvider extends ServiceProvider
         $this->registerFactories();
         $this->commands([
             ArchiveThreads::class,
+            CheckArchiveApi::class,
+            ProbeArchiveId::class,
+            DisconnectAmeise::class,
+            ListArchiveEntries::class,
+            ResolveArchiveIds::class,
+            SeedArchiveEntries::class,
         ]);
         $this->loadMigrationsFrom(__DIR__ . '/../Database/Migrations');
         $this->hooks();
@@ -69,6 +81,13 @@ class AmeiseModuleServiceProvider extends ServiceProvider
 
         Eventy::addAction('layout.body_bottom', function () {
             echo View::make('ameise::partials/crm_users')->render();
+        }, 10, 2);
+
+        Eventy::addAction('layout.body_bottom', function () {
+            if (!auth()->user()) {
+                return;
+            }
+            echo View::make('ameise::partials/archive_entry_modal')->render();
         }, 10, 2);
 
         Eventy::addAction('conversation.created_by_user_can_undo', function ($conversation) {
@@ -167,6 +186,8 @@ class AmeiseModuleServiceProvider extends ServiceProvider
             $settings['ameise_mode'] = config('ameisemodule.ameise_mode');
             $settings['ameise_client_id'] = config('ameisemodule.ameise_client_id');
             $settings['ameise_redirect_uri'] = route('crm.auth');
+            $settings['ameise_archive_api_url'] = config('ameisemodule.ameise_archive_api_url');
+            $settings['ameise_scope'] = config('ameisemodule.ameise_scope');
             // Wird als Option in der Datenbank gespeichert (mehrzeilig, deshalb
             // kein .env-Eintrag).
             $settings['ameise_excluded_senders'] = \Modules\AmeiseModule\Services\SenderExclusion::getRawSetting();
@@ -192,6 +213,12 @@ class AmeiseModuleServiceProvider extends ServiceProvider
                 ],
                 'ameise_redirect_uri' => [
                     'env' => 'AMEISE_REDIRECT_URI',
+                ],
+                'ameise_archive_api_url' => [
+                    'env' => 'AMEISE_ARCHIVE_API_URL',
+                ],
+                'ameise_scope' => [
+                    'env' => 'AMEISE_SCOPE',
                 ],
                 'ameise_log_status' => [
                     'env' => 'AMEISE_LOG_STATUS',
