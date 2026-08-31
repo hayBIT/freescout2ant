@@ -13,6 +13,7 @@ use Modules\AmeiseModule\Services\CrmApiClient;
 use Modules\AmeiseModule\Services\ConversationArchiver;
 use Modules\AmeiseModule\Entities\CrmArchive;
 use Modules\AmeiseModule\Entities\CrmArchiveThread;
+use Modules\AmeiseModule\Entities\CrmArchiveEntry;
 
 class AmeiseController extends Controller
 {
@@ -215,8 +216,20 @@ class AmeiseController extends Controller
         if(!$archives) {
             return false;
         }
+
+        // Die Einträge kommen aus dem lokalen Spiegel — die Seitenleiste
+        // braucht dafür keinen Aufruf der Archive-API.
+        $entries = CrmArchiveEntry::where('conversation_id', $id)
+            ->orderBy('entry_date')
+            ->orderBy('kind')
+            ->get()
+            ->groupBy(function ($entry) {
+                return (string) $entry->customer_id;
+            });
+
         return view('ameise::partials.contracts', [
             'archives' => $archives,
+            'entries' => $entries,
         ])->render();
 
     }

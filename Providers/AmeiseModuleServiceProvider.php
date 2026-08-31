@@ -83,6 +83,13 @@ class AmeiseModuleServiceProvider extends ServiceProvider
             echo View::make('ameise::partials/crm_users')->render();
         }, 10, 2);
 
+        Eventy::addAction('layout.body_bottom', function () {
+            if (!auth()->user()) {
+                return;
+            }
+            echo View::make('ameise::partials/archive_entry_modal')->render();
+        }, 10, 2);
+
         Eventy::addAction('conversation.created_by_user_can_undo', function ($conversation) {
             $this->archiveIfConnected($conversation);
         });

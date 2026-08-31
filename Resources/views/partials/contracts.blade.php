@@ -66,6 +66,50 @@
                                         </div>
                                     @endforeach
                                 @endif
+
+                                @php
+                                    $customerEntries = $entries->get((string) $archive->crm_user_id, collect());
+                                @endphp
+                                @if ($customerEntries->isNotEmpty())
+                                    <div class="ameise-entries">
+                                        <div class="ameise-entries-head">
+                                            <span class="ameise-entries-title">{{ $customerEntries->count() }} {{ __('Archiveinträge') }}</span>
+                                            <span class="ameise-entries-actions">
+                                                <a href="#" class="ameise-bulk-relations"
+                                                   data-conversation="{{ $archive->conversation_id }}"
+                                                   data-customer="{{ $archive->crm_user_id }}">{{ __('Zuordnung ändern') }}</a>
+                                                <a href="#" class="ameise-resolve" title="{{ __('Zuordnung in der Ameise nachschlagen') }}"
+                                                   data-conversation="{{ $archive->conversation_id }}">&#8635;</a>
+                                            </span>
+                                        </div>
+
+                                        @foreach ($customerEntries as $entry)
+                                            <div class="ameise-entry" data-entry="{{ $entry->id }}">
+                                                <span class="ameise-entry-icon glyphicon {{ $entry->kind === 'attachment' ? 'glyphicon-file' : ($entry->entry_type === 'telefon' ? 'glyphicon-earphone' : 'glyphicon-envelope') }}"></span>
+                                                <span class="ameise-entry-body">
+                                                    <span class="ameise-entry-subject">{{ $entry->subject ?: __('(Kein Betreff)') }}</span>
+                                                    @if ($entry->requires_review)
+                                                        <span class="ameise-badge review">{{ __('Prüfung') }}</span>
+                                                    @endif
+                                                    @if (isset($entry->is_public) && !$entry->is_public)
+                                                        <span class="ameise-badge internal">{{ __('intern') }}</span>
+                                                    @endif
+                                                    @if ($entry->is_deleted)
+                                                        <span class="ameise-badge deleted">{{ __('gelöscht') }}</span>
+                                                    @endif
+                                                    @if (!$entry->archive_entry_id)
+                                                        <span class="ameise-badge unmapped" title="{{ $entry->last_error }}">{{ __('nicht zugeordnet') }}</span>
+                                                    @endif
+                                                    <span class="ameise-entry-meta">{{ $entry->entry_date ? $entry->entry_date->format('d.m.Y H:i') : '' }}</span>
+                                                </span>
+                                                @if ($entry->archive_entry_id)
+                                                    <a href="#" class="ameise-entry-edit" data-entry="{{ $entry->id }}"
+                                                       title="{{ __('Archiveintrag bearbeiten') }}"><span class="glyphicon glyphicon-pencil"></span></a>
+                                                @endif
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                @endif
                             </div>
                         @endforeach
                     </div>

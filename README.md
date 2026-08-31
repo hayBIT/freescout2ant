@@ -142,6 +142,32 @@ ausführen — eine Umleitung mit `>` käme dort als Argument beim Befehl an. Al
 `AMEISE_LOG_STATUS=true` zu setzen und eine beliebige Konversation wie gewohnt zu
 archivieren: Header, Body und die erkannte ID stehen dann im Log.
 
+## Archiveinträge bearbeiten
+
+In der Seitenleiste einer Konversation stehen unter den Zuordnungen die einzelnen
+Archiveinträge der Ameise — je Nachricht und je Anhang einer, mit Status und Datum. Über
+das Stift-Symbol öffnet sich der Bearbeiten-Dialog mit drei Reitern:
+
+* **Eintrag** — Betreff, Typ, Datum, Text, Sichtbarkeit für Kunden, Prüfmarke und
+  Dateiliste. Der Typ ist gesperrt, solange Dateien am Eintrag hängen; die API lehnt
+  eine Änderung dann ab.
+* **Zuordnung** — Verträge und Sparten (aus der Mitarbeiter-API) sowie Tags mit
+  Vorschlägen. Ein Häkchen überträgt die Zuordnung auf alle Einträge der Konversation.
+* **Verlauf** — das Änderungsprotokoll der Ameise, filterbar nach Modul.
+
+„Zuordnung ändern“ in der Kopfzeile setzt Verträge und Sparten für alle Einträge auf
+einmal — wahlweise ersetzend oder ergänzend.
+
+Jede Änderung läuft als Read-Modify-Write: der Eintrag wird frisch gelesen, die Änderung
+darauf angewendet und der vollständige Zustand gesendet. Andernfalls würden weggelassene
+Felder Tags und Zuordnungen in der Ameise leeren.
+
+„Löschen“ setzt `isDeleted` — ein hartes Löschen bietet die API nicht an (403).
+
+Einträge ohne ermittelte UUID sind mit *nicht zugeordnet* gekennzeichnet und haben kein
+Stift-Symbol. Das Symbol ↻ in der Kopfzeile schlägt die Zuordnung für die geöffnete
+Konversation nach; beim ersten Öffnen geschieht das automatisch.
+
 ## Logging
 Verbose module logs (including Cron-Logeinträge) are disabled by default to avoid
 ein übermäßiges Wachstum der `activity_logs`-Tabelle. Bei Bedarf können Sie sie

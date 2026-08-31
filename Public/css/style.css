@@ -144,3 +144,130 @@ span.loading-icon {
 .form-group .select2{
     width: 100% !important;
 }
+
+/* --- Archiveinträge in der Seitenleiste --- */
+.ameise-entries {
+    border-top: 1px dashed #dfe4e6;
+    margin-top: 10px;
+    padding-top: 8px;
+}
+.ameise-entries-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+.ameise-entries-title {
+    font-size: 10.5px;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+    color: #96a0a6;
+}
+.ameise-entry {
+    display: grid;
+    grid-template-columns: 16px 1fr 16px;
+    gap: 6px;
+    align-items: start;
+    padding: 5px 0;
+    border-bottom: 1px solid #f0f3f4;
+}
+.ameise-entry:last-child {
+    border-bottom: none;
+}
+.ameise-entry-icon {
+    color: #8d979e;
+    font-size: 11px;
+    padding-top: 2px;
+}
+.ameise-entry-subject {
+    font-size: 12.5px;
+    color: #333;
+    word-break: break-word;
+}
+.ameise-entry-meta {
+    display: block;
+    font-size: 11px;
+    color: #96a0a6;
+}
+.ameise-entry-edit {
+    color: #337ab7;
+    font-size: 11px;
+    padding-top: 2px;
+}
+.ameise-badge {
+    font-size: 10px;
+    padding: 0 5px;
+    border-radius: 9px;
+    border: 1px solid;
+    display: inline-block;
+    margin-left: 4px;
+    white-space: nowrap;
+}
+.ameise-badge.review { color: #8a6d3b; border-color: #e2c98a; background: #fcf8e3; }
+.ameise-badge.internal { color: #31708f; border-color: #bce8f1; background: #e8f4f8; }
+.ameise-badge.deleted { color: #a94442; border-color: #ebccd1; background: #f2dede; }
+.ameise-badge.unmapped { color: #777; border-color: #ddd; background: #f5f5f5; }
+
+/* --- Bearbeiten-Dialog --- */
+.ameise-entry-tabs {
+    padding: 0 15px;
+    margin-bottom: 0;
+}
+#ameise-entry-modal .modal-body,
+#ameise-bulk-modal .modal-body {
+    max-height: 60vh;
+    overflow-y: auto;
+}
+#ameise-entry-modal .btn-link.ameise-danger {
+    color: #a94442;
+    padding-left: 0;
+    float: left;
+}
+.ameise-file {
+    border: 1px solid #e5e9eb;
+    border-radius: 3px;
+    padding: 5px 8px;
+    font-size: 12px;
+    margin-bottom: 4px;
+}
+.ameise-log-filter {
+    margin-bottom: 10px;
+}
+.ameise-log-filter a {
+    font-size: 11.5px;
+    border: 1px solid #ccd2d6;
+    border-radius: 13px;
+    padding: 2px 9px;
+    margin-right: 4px;
+    color: #5c666d;
+    text-decoration: none;
+    display: inline-block;
+}
+.ameise-log-filter a.active {
+    background: #337ab7;
+    border-color: #2e6da4;
+    color: #fff;
+}
+.ameise-log-row {
+    display: grid;
+    grid-template-columns: 110px 1fr;
+    gap: 10px;
+    padding: 6px 0;
+    border-bottom: 1px solid #f0f3f4;
+    font-size: 12px;
+}
+.ameise-log-when {
+    color: #96a0a6;
+    font-variant-numeric: tabular-nums;
+}
+.ameise-log-row del { color: #a94442; }
+.ameise-log-row ins { color: #3c763d; text-decoration: none; }
+.ameise-entries-actions {
+    display: inline-flex;
+    gap: 8px;
+    white-space: nowrap;
+}
+.ameise-entries-actions a {
+    font-size: 12px;
+}
