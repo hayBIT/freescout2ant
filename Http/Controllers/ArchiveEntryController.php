@@ -344,7 +344,7 @@ class ArchiveEntryController extends Controller
      * Der lokale Spiegel für die Anzeige, ergänzt um Felder, die nur die
      * Antwort der Ameise enthält.
      */
-    private function present(CrmArchiveEntry $entry, array $remote = null): array
+    private function present(CrmArchiveEntry $entry, ?array $remote = null): array
     {
         $data = [
             'id' => $entry->id,
