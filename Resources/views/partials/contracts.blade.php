@@ -73,7 +73,7 @@
                                 @if ($customerEntries->isNotEmpty())
                                     <div class="ameise-entries">
                                         <div class="ameise-entries-head">
-                                            <span class="ameise-entries-title">{{ $customerEntries->count() }} {{ __('Archiveinträge') }}</span>
+                                            <span class="ameise-entries-title">{{ $customerEntries->count() }} {{ $customerEntries->count() === 1 ? __('Archiveintrag') : __('Archiveinträge') }}</span>
                                             <span class="ameise-entries-actions">
                                                 <a href="#" class="ameise-bulk-relations"
                                                    data-conversation="{{ $archive->conversation_id }}"
