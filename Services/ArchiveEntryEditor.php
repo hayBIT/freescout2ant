@@ -97,8 +97,12 @@ class ArchiveEntryEditor
 
         $payload = ArchiveEntryPayload::fromEntry($remote, $changes);
 
+        if (config('ameisemodule.ameise_log_status')) {
+            \Helper::log('archive_entry_update', 'PATCH ' . $entry->archive_entry_id . ': ' . json_encode($payload));
+        }
+
         if (!$this->client->updateArchiveEntry($entry->customer_id, $entry->archive_entry_id, $payload)) {
-            $this->mark($entry, CrmArchiveEntry::STATE_CONFLICT, $this->client->getLastError());
+            $this->mark($entry, CrmArchiveEntry::STATE_CONFLICT, $this->describeFailure());
             return false;
         }
 
@@ -199,6 +203,25 @@ class ArchiveEntryEditor
             'isDeleted' => $payload['isDeleted'] ?? false,
             'date' => $payload['date'] ?? null,
         ];
+    }
+
+    /**
+     * Die Antwort der API mitnehmen: bei einem 422 nennt sie das beanstandete
+     * Feld, und ohne das bleibt nur Raten.
+     */
+    private function describeFailure(): string
+    {
+        $message = (string) $this->client->getLastError();
+        $body = trim((string) $this->client->getLastResponseBody());
+
+        if ($body === '') {
+            return $message;
+        }
+
+        $decoded = json_decode($body, true);
+        $detail = $decoded['error']['message'] ?? $body;
+
+        return trim($message . ' — ' . mb_substr(preg_replace('/\s+/', ' ', (string) $detail), 0, 400));
     }
 
     private function syncMirror(CrmArchiveEntry $entry, array $remote)
