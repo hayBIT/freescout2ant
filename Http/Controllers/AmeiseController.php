@@ -219,13 +219,22 @@ class AmeiseController extends Controller
 
         // Die Einträge kommen aus dem lokalen Spiegel — die Seitenleiste
         // braucht dafür keinen Aufruf der Archive-API.
-        $entries = CrmArchiveEntry::where('conversation_id', $id)
-            ->orderBy('entry_date')
-            ->orderBy('kind')
-            ->get()
-            ->groupBy(function ($entry) {
-                return (string) $entry->customer_id;
-            });
+        //
+        // Fehlt die Tabelle noch, weil die Migration nach einem Dateiupdate
+        // nicht gelaufen ist, zeigt die Seitenleiste einfach keine Einträge,
+        // statt ganz auszufallen.
+        try {
+            $entries = CrmArchiveEntry::where('conversation_id', $id)
+                ->orderBy('entry_date')
+                ->orderBy('kind')
+                ->get()
+                ->groupBy(function ($entry) {
+                    return (string) $entry->customer_id;
+                });
+        } catch (\Exception $e) {
+            \Helper::log('conversation_archive', 'Archiveinträge konnten nicht gelesen werden: ' . $e->getMessage());
+            $entries = collect();
+        }
 
         return view('ameise::partials.contracts', [
             'archives' => $archives,
