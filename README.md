@@ -30,11 +30,12 @@ Bearbeitungsfunktionen. Ihr Host wird unter **Einstellungen → Ameise** im Feld
 `Archive API URL` gesetzt oder direkt über die Umgebungsvariable
 `AMEISE_ARCHIVE_API_URL`.
 
+* **Live-Modus:** Bleibt das Feld leer, wird `https://customer-archives.ameiseapis.com`
+  verwendet — gegen die Live-Umgebung geprüft.
 * **Test-Modus:** Bleibt das Feld leer, wird
   `https://customer-archives-ameiseapis.inte.dionera.dev` verwendet. Dieser Wert ist aus
-  der OpenAPI-Datei abgeleitet und nicht verifiziert — im Zweifel eintragen.
-* **Live-Modus:** Der Host muss gesetzt werden — ohne Eintrag bleiben die
-  Funktionen der Archive-API deaktiviert, statt Anfragen an einen falschen Host zu senden.
+  dem Muster der übrigen `inte`-Hosts abgeleitet und **nicht geprüft**; der Live-Host
+  folgt einer anderen Schreibweise, der richtige Wert kann also abweichen.
 
 Ob Host und OAuth-Scope stimmen, lässt sich prüfen mit:
 

@@ -275,7 +275,9 @@ muss Archivieren, Nacharchivieren per Cron und Weiterleiten exakt wie heute funk
   `customers/{id}/archive-entries` jeweils mit 200. Der Scope wird **nicht** als
   Standard ins Modul übernommen: Mandanten, deren Client ihn nicht führt, bekämen sonst
   beim Verbinden ein `invalid_scope` und stünden ohne Archivierung da (siehe 8a).
-  Der Host der Testumgebung ist weiterhin ungeprüft.
+  Der Live-Host ist seit dem 13.09.2026 als Standard im Modul hinterlegt, passend zu den
+  übrigen Backends; das Feld in den Einstellungen übersteuert ihn. Der Host der
+  Testumgebung ist weiterhin ungeprüft.
 * **Zeitzonen-Falle:** `entry_date` gehört in die Zeitzone der Anwendung, nicht in UTC —
   Laravel liest Datumsfelder in `config('app.timezone')` zurück. Ein in UTC abgelegter
   Wert kommt um den Offset verschoben an, und die Zuordnung findet nichts.

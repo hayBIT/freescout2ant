@@ -24,11 +24,16 @@ class ArchiveApiClient
     use SanitizesLogs;
 
     /**
-     * Der Host der Testumgebung ist aus dem Muster der übrigen inte-Hosts
-     * abgeleitet; die OpenAPI-Datei nennt nur den lokalen Entwicklungs-Host.
-     * Über AMEISE_ARCHIVE_API_URL bzw. das Feld in den Einstellungen lässt er
-     * sich überschreiben. Für den Live-Betrieb gibt es bewusst keinen Standard:
-     * lieber eine klare Fehlermeldung als Requests an den falschen Host.
+     * Gegen die Live-Umgebung geprüft: vier Endpunkte antworten mit 200.
+     */
+    private const DEFAULT_LIVE_URL = 'https://customer-archives.ameiseapis.com';
+
+    /**
+     * Nicht geprüft — aus dem Muster der übrigen inte-Hosts abgeleitet, weil die
+     * OpenAPI-Datei nur den lokalen Entwicklungs-Host nennt. Der Live-Host folgt
+     * einer anderen Schreibweise (Punkt statt Bindestrich), der richtige Wert
+     * könnte also abweichen. Über AMEISE_ARCHIVE_API_URL bzw. das Feld in den
+     * Einstellungen lässt er sich überschreiben.
      */
     private const DEFAULT_TEST_URL = 'https://customer-archives-ameiseapis.inte.dionera.dev';
 
@@ -49,7 +54,9 @@ class ArchiveApiClient
     }
 
     /**
-     * Ohne konfigurierten Host im Live-Modus ist der Client nicht einsatzbereit.
+     * Ohne Host ist der Client nicht einsatzbereit. Da für beide Modi ein
+     * Standard hinterlegt ist, trifft das derzeit nur zu, wenn einer dieser
+     * Standards entfernt wird — die Prüfung bleibt als Absicherung bestehen.
      */
     public function isConfigured(): bool
     {
@@ -259,7 +266,9 @@ class ArchiveApiClient
     {
         $configured = trim((string) config('ameisemodule.ameise_archive_api_url'));
         if ($configured === '') {
-            $configured = config('ameisemodule.ameise_mode') == 'test' ? self::DEFAULT_TEST_URL : '';
+            $configured = config('ameisemodule.ameise_mode') == 'test'
+                ? self::DEFAULT_TEST_URL
+                : self::DEFAULT_LIVE_URL;
         }
         if ($configured === '') {
             return '';
