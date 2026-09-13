@@ -16,10 +16,24 @@ class ConversationArchiver
 
     private $senderExclusion;
 
-    public function __construct(CrmApiClient $apiClient, ?SenderExclusion $senderExclusion = null)
-    {
+    private $recorder;
+
+    public function __construct(
+        CrmApiClient $apiClient,
+        ?SenderExclusion $senderExclusion = null,
+        ?ArchiveEntryRecorder $recorder = null
+    ) {
         $this->apiClient = $apiClient;
         $this->senderExclusion = $senderExclusion ?: new SenderExclusion();
+        $this->recorder = $recorder ?: new ArchiveEntryRecorder();
+    }
+
+    /**
+     * Hält fest, welcher Archiveintrag zu welchem Thread bzw. Anhang gehört.
+     */
+    public function getRecorder(): ArchiveEntryRecorder
+    {
+        return $this->recorder;
     }
 
     /**
@@ -124,12 +138,13 @@ class ConversationArchiver
         ];
     }
 
-    public function archiveConversationWithAttachments($thread, $conversation_data, $user = null)
+    public function archiveConversationWithAttachments($thread, $conversation_data, $user = null, $crmArchiveId = null)
     {
         $allAttachments = $thread->attachments;
         $user = $user ?? auth()->user();
         $userTimezone = $user->timezone;
         $allArchived = true;
+        $conversation = $thread->conversation ?: Conversation::find($thread->conversation_id);
 
         if ($allAttachments->count() > 0) {
             foreach ($allAttachments as $attachment) {
@@ -161,7 +176,18 @@ class ConversationArchiver
                     'X-Dio-Zuordnungen' => $conversation_data['X-Dio-Zuordnungen'],
                     'X-Dio-Datum' => Carbon::parse($thread->created_at)->setTimezone($userTimezone)->format('Y-m-d\\TH:i:s')
                 ];
-                if (!$this->apiClient->archiveConversation($attachmentData)) {
+                if ($this->apiClient->archiveConversation($attachmentData)) {
+                    $this->recorder->recordAttachment(
+                        $conversation,
+                        $thread,
+                        $attachment['id'] ?? null,
+                        $attachmentData,
+                        $this->apiClient->getLastArchiveEntryId(),
+                        $user->id,
+                        $userTimezone,
+                        $crmArchiveId
+                    );
+                } else {
                     \Helper::log('conversation_archive', 'Failed to archive attachment: ' . $subject);
                     $allArchived = false;
                 }
@@ -200,7 +226,18 @@ class ConversationArchiver
                         $conversation_data = $this->createConversationData($conversation, $crmArchive->crm_user_id, $contracts, $divisions, $thread, $user);
                         $scanOnly = $this->isScanOnly($conversation);
                         $archived = $scanOnly ? true : $this->apiClient->archiveConversation($conversation_data);
-                        $attachmentsArchived = $archived ? $this->archiveConversationWithAttachments($thread, $conversation_data, $user) : false;
+                        if ($archived && !$scanOnly) {
+                            $this->recorder->recordThread(
+                                $conversation,
+                                $thread,
+                                $conversation_data,
+                                $this->apiClient->getLastArchiveEntryId(),
+                                $user->id,
+                                $user->timezone,
+                                $crmArchive->id
+                            );
+                        }
+                        $attachmentsArchived = $archived ? $this->archiveConversationWithAttachments($thread, $conversation_data, $user, $crmArchive->id) : false;
                         if($archived && (!$scanOnly || $attachmentsArchived)) {
                             CrmArchiveThread::create(['crm_archive_id' => $crmArchive->id,'thread_id' => $thread->id,'conversation_id'=> $conversation->id ]);
                         }
@@ -213,6 +250,16 @@ class ConversationArchiver
                     $conversation_data  = $this->createConversationData($conversation, $crm_user_id, [], [], $thread, $user);
                     $scanOnly = $this->isScanOnly($conversation);
                     $archived = $scanOnly ? true : $this->apiClient->archiveConversation($conversation_data);
+                    if ($archived && !$scanOnly) {
+                        $this->recorder->recordThread(
+                            $conversation,
+                            $thread,
+                            $conversation_data,
+                            $this->apiClient->getLastArchiveEntryId(),
+                            $user->id,
+                            $user->timezone
+                        );
+                    }
                     $attachmentsArchived = $archived ? $this->archiveConversationWithAttachments($thread, $conversation_data, $user) : false;
                     if($archived && (!$scanOnly || $attachmentsArchived)) {
                         $crm_archive = CrmArchive::firstOrNew(['conversation_id' => $conversation->id, 'crm_user_id' => $crm_user_id,'archived_by' => $user->id]);
@@ -220,6 +267,8 @@ class ConversationArchiver
                         $crm_archive->contracts = null;
                         $crm_archive->divisions = null;
                         $crm_archive->save();
+                        // Die Zuordnung entsteht erst hier — die Einträge nachtragen.
+                        $this->recorder->linkArchive($conversation->id, $crm_user_id, $crm_archive->id);
                         CrmArchiveThread::create(['crm_archive_id' => $crm_archive->id,'thread_id' => $thread->id,'conversation_id'=> $conversation->id ]);
                     }
                 }
