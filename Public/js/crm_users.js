@@ -130,8 +130,38 @@ function initializeSelect2(context) {
 // Initialize Select2 for BCC
 //initializeSelect2($('#bcc'));
 
+// FreeScout turns the recipient fields of reply/forward forms into Selectize
+// widgets itself, sometimes only after this script has run. Stacking Select2 on
+// top of Selectize renders a second (required) input, so Selectize always wins.
+function isSelectized($el) {
+    return $el.hasClass('selectized') || $el.siblings('.selectize-control').length > 0;
+}
+
+function removeSelect2IfSelectized($el) {
+    if (!isSelectized($el) || !$el.data('select2')) {
+        return;
+    }
+    $el.select2('destroy');
+    $el.hide();
+}
+
 // Initialize Select2 for TO
-initializeSelect2($('#to'));
+const $to = $('#to');
+if ($to.length && !isSelectized($to)) {
+    initializeSelect2($to);
+
+    // Selectize may get initialised after us: drop Select2 as soon as it does.
+    if (window.MutationObserver && $to.parent().length) {
+        const observer = new MutationObserver(function () {
+            removeSelect2IfSelectized($to);
+            if (!$to.data('select2')) {
+                observer.disconnect();
+            }
+        });
+        observer.observe($to.parent()[0], { childList: true });
+        observer.observe($to[0], { attributes: true, attributeFilter: ['class'] });
+    }
+}
 
 
   let conversation = document.getElementById('conv-layout-customer');
